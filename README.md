@@ -1,4 +1,4 @@
-# Practice Automations - PAPM
+# Nucleus 3.0
 ### Feature branch flow
 
 - Each Jira ticket needs a branch
