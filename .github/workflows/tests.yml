@@ -1,0 +1,34 @@
+name: WhiteBox Tests
+
+on: [push]
+
+jobs:
+  cypress-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      # Install NPM dependencies, cache them correctly
+      # and run all Cypress tests
+      - name: Cypress run
+        uses: cypress-io/github-action@v4.1.0
+        with:
+          build: npm run build
+          start: npm start       
+        #   record: true  
+        # env:
+        #   CYPRESS_RECORD_KEY: f9b803c0-4b5e-4824-93ae-5e61e459e224
+      - name: Jest Tests
+        run: npm test
+
+
+    # steps:
+    #   - uses: actions/checkout@v2
+    #   - name: Install dependencies
+    #     run: npm install
+    #   - name: Cypress run
+    #     with:
+    #       build: npm run build
+    #       start: npm start
+    #   - name: Run tests
+    #     run: npm test
