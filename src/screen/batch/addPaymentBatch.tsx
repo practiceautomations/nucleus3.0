@@ -40,6 +40,7 @@ import {
 } from '@/store/shared/selectors';
 import type {
   AllInsuranceData,
+  BatchDetailCriteria,
   PostingDateCriteria,
   TBatchUploadedDocument,
   TPaymentBatchType,
@@ -117,6 +118,19 @@ export default function AddPaymentBatch({
     confirmActionType: '',
     showCloseButton: false,
   };
+
+  const defaultSearchCriteria: BatchDetailCriteria = {
+    attachedID: undefined,
+    typeID: '',
+    pageNumber: 1,
+    pageSize: 10,
+    sortByColumn: '',
+    sortOrder: '',
+    getAllData: false,
+    getOnlyIDs: false,
+  };
+
+  // const [searchCriteria, setSearchCriteria] = useState(defaultSearchCriteria);
 
   const [statusModalInfo, setStatusModalInfo] = useState(
     defaultStatusModalInfo
@@ -265,8 +279,8 @@ export default function AddPaymentBatch({
       setAddUpdateJson(res);
     }
   };
-  const getDocumentDataByID = async (id: number) => {
-    const res = await fetchDocumentDataByID(id, batchcategoryID.current);
+  const getDocumentDataByID = async (obj: BatchDetailCriteria) => {
+    const res = await fetchDocumentDataByID(obj);
     if (res) {
       setSelectedFileslist(res);
     }
@@ -275,7 +289,12 @@ export default function AddPaymentBatch({
   useEffect(() => {
     if (batchId) {
       getBatchByID(batchId);
-      getDocumentDataByID(batchId);
+      const obj: BatchDetailCriteria = {
+        ...defaultSearchCriteria,
+        attachedID: batchId,
+        typeID: batchcategoryID.current,
+      };
+      getDocumentDataByID(obj);
     }
   }, []);
 
@@ -284,17 +303,22 @@ export default function AddPaymentBatch({
       // in update mode
       if (batchId) {
         const formData = new FormData();
-        formData.append('batchID', String(batchId));
+        formData.append('attachedID', String(batchId));
         formData.append(
           'groupID',
           addUpdateJson.groupID ? String(addUpdateJson.groupID) : ''
         );
         formData.append('file', selectedFile);
-        formData.append('categoryID', batchcategoryID.current);
+        formData.append('documentTypeID', batchcategoryID.current);
 
         const res = await uploadBatchDocument(formData);
         if (res) {
-          await getDocumentDataByID(batchId);
+          const obj: BatchDetailCriteria = {
+            ...defaultSearchCriteria,
+            attachedID: batchId,
+            typeID: batchcategoryID.current,
+          };
+          await getDocumentDataByID(obj);
         } else {
           return;
         }
@@ -308,14 +332,19 @@ export default function AddPaymentBatch({
         setSelectedFileslist([
           ...selectedFilesList,
           {
-            documentID: undefined,
+            id: undefined,
             title: name || '',
-            systemDocumentType: `.${type || ''}`,
+            documentType: `.${type || ''}`,
             createdBy: user?.name || '',
             createdOn: getServerDateTimeString(),
             file: selectedFile,
             documentPath: '',
             active: null,
+            documentStatus: '',
+            category: '',
+            additionalComment1: '',
+            additionalComment2: '',
+            total: 0,
           },
         ]);
         setIsChangedJson(true);
@@ -352,11 +381,11 @@ export default function AddPaymentBatch({
       }
     }
     // in update mode
-    else if (res.documentID) {
-      const resDownloadDocument = await downloadDocumentBase64(res.documentID);
-      if (resDownloadDocument && resDownloadDocument.data) {
+    else if (res.id) {
+      const resDownloadDocument = await downloadDocumentBase64(res.id);
+      if (resDownloadDocument && resDownloadDocument.documentBase64) {
         // check the file extension
-        const extension = res.systemDocumentType.substring(1).toLowerCase();
+        const extension = res.documentType.substring(1).toLowerCase();
         // set the content type based on the file extension
         let contentType = '';
         if (extension === 'png') {
@@ -367,7 +396,7 @@ export default function AddPaymentBatch({
           contentType = 'application/pdf';
         }
         // concatenate the content type and base64 string
-        base64String = `data:${contentType};base64,${resDownloadDocument.data}`;
+        base64String = `data:${contentType};base64,${resDownloadDocument.documentBase64}`;
       }
     }
 
@@ -405,10 +434,10 @@ export default function AddPaymentBatch({
       }
     }
     // in update mode
-    else if (res.documentID) {
-      const resDownloadDocument = await downloadDocumentBase64(res.documentID);
-      if (resDownloadDocument && resDownloadDocument.data) {
-        base64String = `data:application/octet-stream;base64,${resDownloadDocument.data}`;
+    else if (res.id) {
+      const resDownloadDocument = await downloadDocumentBase64(res.id);
+      if (resDownloadDocument && resDownloadDocument.documentBase64) {
+        base64String = `data:application/octet-stream;base64,${resDownloadDocument.documentBase64}`;
       }
     }
 
@@ -418,7 +447,7 @@ export default function AddPaymentBatch({
       if (pdfWindow) {
         const a = document.createElement('a');
         a.href = base64String;
-        a.download = res.title + res.systemDocumentType;
+        a.download = res.title + res.documentType;
         a.click();
       }
     } else {
@@ -438,13 +467,111 @@ export default function AddPaymentBatch({
       setSelectedFileslist(selectedFilesList.filter((d) => d !== res));
     }
     // in update mode
-    else if (res.documentID) {
-      const docDelete = await deleteDocument(res.documentID);
+    else if (res.id) {
+      const docDelete = await deleteDocument(res.id);
       if (docDelete) {
-        await getDocumentDataByID(batchId);
+        const obj: BatchDetailCriteria = {
+          ...defaultSearchCriteria,
+          attachedID: batchId,
+          typeID: batchcategoryID.current,
+        };
+        await getDocumentDataByID(obj);
       }
     }
   };
+
+  // const columns: GridColDef[] = [
+  //   {
+  //     field: 'id',
+  //     headerName: 'Document ID',
+  //     flex: 1,
+  //     minWidth: 150,
+  //     disableReorder: true,
+  //   },
+  //   {
+  //     field: 'title',
+  //     headerName: 'Document Name',
+  //     flex: 1,
+  //     minWidth: 320,
+  //     disableReorder: true,
+  //   },
+  //   {
+  //     field: 'documentType',
+  //     headerName: 'File Type',
+  //     flex: 1,
+  //     minWidth: 100,
+  //     disableReorder: true,
+  //   },
+  //   {
+  //     field: 'createdBy',
+  //     headerName: 'Uploaded By',
+  //     flex: 1,
+  //     minWidth: 200,
+  //     disableReorder: true,
+  //   },
+  //   {
+  //     field: 'createdOn',
+  //     headerName: 'Uploaded On',
+  //     flex: 1,
+  //     minWidth: 250,
+  //     disableReorder: true,
+  //   },
+  //   {
+  //     field: 'action',
+  //     headerName: 'Actions',
+  //     flex: 1,
+  //     minWidth: 180,
+  //     hideSortIcons: true,
+  //     disableReorder: true,
+  //     cellClassName: '!bg-cyan-50 PinnedColumLeftBorder',
+  //     headerClassName: '!bg-cyan-100 !text-center PinnedColumLeftBorder',
+  //     renderCell: (params) => {
+  //       return (
+  //         <div className="flex flex-row gap-2">
+  //           <Button
+  //             buttonType={ButtonType.secondary}
+  //             onClick={() => {
+  //               onViewDacument(params.row);
+  //             }}
+  //             cls={`h-[38px] w-[38px] justify-center !px-2 !py-1 inline-flex gap-2 leading-5`}
+  //           >
+  //             <Icon name={'eye'} size={18} />
+  //           </Button>
+  //           <Button
+  //             buttonType={ButtonType.secondary}
+  //             disabled={false}
+  //             cls={`h-[38px] w-[38px] justify-center !px-2 !py-1 inline-flex gap-2 leading-5`}
+  //             onClick={() => {
+  //               onDownloadDacument(params.row);
+  //             }}
+  //           >
+  //             <Icon name={'documentDownload'} size={18} />
+  //           </Button>
+  //           <Button
+  //             buttonType={ButtonType.secondary}
+  //             disabled={true}
+  //             cls={`h-[38px] w-[38px] justify-center !px-2 !py-1 inline-flex gap-2 leading-5`}
+  //             onClick={() => {
+  //               setDocumentToDelete(params.row);
+  //               setStatusModalInfo({
+  //                 ...statusModalInfo,
+  //                 show: true,
+  //                 heading: 'Delete Confirmation',
+  //                 text: `Are you sure you want to delete ${params.row.title}?`,
+  //                 type: StatusModalType.WARNING,
+  //                 showCloseButton: true,
+  //                 okButtonText: 'Confirm',
+  //                 confirmActionType: 'deleteConfirmation',
+  //               });
+  //             }}
+  //           >
+  //             <Icon name={'trash'} size={18} />
+  //           </Button>
+  //         </div>
+  //       );
+  //     },
+  //   },
+  // ];
 
   return (
     <>
@@ -922,13 +1049,11 @@ export default function AddPaymentBatch({
                         {selectedFilesList?.map((uploadDocRow, i) => (
                           <AppTableRow key={i}>
                             <AppTableCell>
-                              {uploadDocRow.documentID
-                                ? `#${uploadDocRow.documentID}`
-                                : ''}
+                              {uploadDocRow.id ? `#${uploadDocRow.id}` : ''}
                             </AppTableCell>
                             <AppTableCell>{uploadDocRow.title}</AppTableCell>
                             <AppTableCell>
-                              {uploadDocRow.systemDocumentType
+                              {uploadDocRow.documentType
                                 .substring(1)
                                 .toUpperCase()}
                             </AppTableCell>
@@ -989,6 +1114,51 @@ export default function AddPaymentBatch({
                       </>
                     }
                   />
+                  {/* <div className="flex w-full flex-col">
+                    <div className="h-full">
+                      <SearchDetailGrid
+                        pageNumber={searchCriteria.pageNumber}
+                        pageSize={searchCriteria.pageSize}
+                        persistLayoutId={42}
+                        hideHeader={false}
+                        hideFooter={false}
+                        totalCount={selectedFilesList[0]?.total}
+                        rows={
+                          selectedFilesList?.map((row) => {
+                            return { ...row, id: row.id };
+                          }) || []
+                        }
+                        columns={columns}
+                        checkboxSelection={false}
+                        onPageChange={(page: number) => {
+                          const obj: BatchDetailCriteria = {
+                            ...searchCriteria,
+                            pageNumber: page,
+                            attachedID: batchId, // Explicitly include batchId
+                            typeID: batchcategoryID.current,
+                          };
+                          setSearchCriteria(obj);
+                          getDocumentDataByID(obj);
+                        }}
+                        onPageSizeChange={(pageSize: number, page: number) => {
+                          if (selectedFilesList.length) {
+                            const obj: BatchDetailCriteria = {
+                              ...searchCriteria,
+                              pageSize,
+                              pageNumber: page,
+                              attachedID: batchId, // Explicitly include batchId
+                              typeID: batchcategoryID.current,
+                            };
+                            setSearchCriteria(obj);
+                            getDocumentDataByID(obj);
+                          }
+                        }}
+                        pinnedColumns={{
+                          right: ['action'],
+                        }}
+                      />
+                    </div>
+                  </div> */}
                 </>
               </div>
             )}

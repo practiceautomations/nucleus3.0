@@ -25,7 +25,7 @@ export default function Badge({
         className={`transition-all flex h-full flex-1 items-center gap-2 self-stretch px-1 text-center`}
       >
         <p
-          className={`transition-all text-xs leading-2 font-medium ${textCls}`}
+          className={`whitespace-nowrap transition-all text-xs leading-2 font-medium ${textCls}`}
         >
           {text}
         </p>

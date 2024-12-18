@@ -45,8 +45,8 @@ export interface PaymentPostingExpandableRowProps {
   postingMethod?: SingleSelectDropDownDataType;
   selectedRefundTypeId?: number;
   reRenderPatientInsuranceBalance?: string;
-  setInsuranceBalanceNeg: (value: boolean) => void;
-  setPatientBalanceNeg: (value: boolean) => void;
+  setInsuranceBalanceNeg: (value: number) => void;
+  setPatientBalanceNeg: (value: number) => void;
 }
 export default function PaymentPostingExpandableRow({
   selectedPayment,
@@ -62,8 +62,8 @@ export default function PaymentPostingExpandableRow({
   selectedRefundTypeId,
   reRenderPatientInsuranceBalance,
   setInsuranceBalanceNeg,
-  setPatientBalanceNeg,
-}: PaymentPostingExpandableRowProps) {
+}: // setPatientBalanceNeg,
+PaymentPostingExpandableRowProps) {
   const [newJsonData, setNewJsonData] =
     useState<SaveInsurancePaymentCriteria>(data);
   const [newPatientJsonData, setNewPatientJsonData] =
@@ -381,7 +381,7 @@ export default function PaymentPostingExpandableRow({
         const insuranceBalanceCurrent = chargeData.data.insuranceBalance || 0;
         const insuranceBalanceAfterPayment =
           insuranceBalanceCurrent + insuranceResponsibility;
-        setPatientBalanceNeg(patientBalanceAfterPayment < 0);
+        // setPatientBalanceNeg(patientBalanceAfterPayment < 0);
         return {
           patientBalance: {
             current: patientBalanceCurrent,
@@ -470,7 +470,7 @@ export default function PaymentPostingExpandableRow({
             (newJsonData.secondaryInsuranceAmount ?? 0) -
             (chargeData.payment ?? 0)
           : -adjustmentSum;
-      setInsuranceBalanceNeg(patInsValue < 0);
+      setInsuranceBalanceNeg(balanceInfo.insuranceBalance?.current || 0);
       const patValue =
         balanceInfo.patientBalance?.current !== undefined
           ? balanceInfo.patientBalance?.current + responsibilitySum
@@ -967,9 +967,12 @@ export default function PaymentPostingExpandableRow({
                                 testId="patientRespAmount"
                                 showCurrencyName={false}
                                 value={
+                                  // eslint-disable-next-line no-nested-ternary
                                   !row.writeOff &&
                                   insAdjustmentsData.length === 1
-                                    ? newJsonData.adjustments[0]?.writeOff
+                                    ? newJsonData.adjustments[0]?.writeOff === 0
+                                      ? ''
+                                      : newJsonData.adjustments[0]?.writeOff
                                     : row.writeOff || ''
                                 }
                                 onChange={(e) => {
@@ -1245,10 +1248,14 @@ export default function PaymentPostingExpandableRow({
                                 testId="patientRespAmount"
                                 showCurrencyName={false}
                                 value={
+                                  // eslint-disable-next-line no-nested-ternary
                                   !patRespRow.patientResponsibility &&
                                   insPatientResposibilityData.length === 1
                                     ? newJsonData.responsibility[0]
-                                        ?.patientResponsibility
+                                        ?.patientResponsibility === 0
+                                      ? ''
+                                      : newJsonData.responsibility[0]
+                                          ?.patientResponsibility
                                     : patRespRow.patientResponsibility || ''
                                 }
                                 onChange={(e) => {

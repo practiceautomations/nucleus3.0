@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { v4 as uuidv4 } from 'uuid';
 
 import UploadFile from '@/components/UI/UploadFile';
@@ -7,14 +7,12 @@ import { addToastNotification } from '@/store/shared/actions';
 import {
   deleteDocument,
   downloadDocumentBase64,
+  fetchAttachmentTypeDropdown,
   getPatientDocumentData,
   uploadPatientDocs,
 } from '@/store/shared/sagas';
-import { getLookupDropdownsDataSelector } from '@/store/shared/selectors';
-import type {
-  LookupDropdownsData,
-  PatientDocumnetData,
-} from '@/store/shared/types';
+// import { getLookupDropdownsDataSelector } from '@/store/shared/selectors';
+import type { IdValuePair, PatientDocumnetData } from '@/store/shared/types';
 import { type GetPatientRequestData, ToastType } from '@/store/shared/types';
 import { DateToStringPipe } from '@/utils/dateConversionPipes';
 
@@ -44,11 +42,7 @@ export default function DocumentsTab({
     useState<SingleSelectDropDownDataType>();
   const getDocumentDataByID = async () => {
     if (selectedPatientData.groupID) {
-      const res = await getPatientDocumentData(
-        patientID,
-        selectedPatientData.groupID,
-        null
-      );
+      const res = await getPatientDocumentData(patientID);
       if (res) {
         setDocumentData(res);
         // setTabs(
@@ -59,10 +53,13 @@ export default function DocumentsTab({
       }
     }
   };
-  const allLookupsData = useSelector(getLookupDropdownsDataSelector);
-  const [lookupsData, setLookupsData] = useState<LookupDropdownsData | null>(
-    null
-  );
+  // const allLookupsData = useSelector(getLookupDropdownsDataSelector);
+  // const [lookupsData, setLookupsData] = useState<LookupDropdownsData | null>(
+  //   null
+  // );
+  const [attachmentTypeDropdown, setAttachmentTypeDropdown] = useState<
+    IdValuePair[]
+  >([]);
   const [changeModalState, setChangeModalState] = useState<{
     open: boolean;
     heading: string;
@@ -82,11 +79,11 @@ export default function DocumentsTab({
     showCloseButton: true,
     closeOnClickOutside: true,
   });
-  useEffect(() => {
-    if (allLookupsData) {
-      setLookupsData(allLookupsData);
-    }
-  }, [allLookupsData]);
+  // useEffect(() => {
+  //   if (allLookupsData) {
+  //     setLookupsData(allLookupsData);
+  //   }
+  // }, [allLookupsData]);
   useEffect(() => {
     if (patientID && selectedPatientData.groupID) {
       getDocumentDataByID();
@@ -100,6 +97,7 @@ export default function DocumentsTab({
       if (patientID) {
         const formData = new FormData();
         formData.append('patientID', String(patientID));
+        formData.append('attachedID', String(patientID));
         formData.append(
           'groupID',
           selectedPatientData.groupID ? String(selectedPatientData.groupID) : ''
@@ -112,6 +110,7 @@ export default function DocumentsTab({
         );
         formData.append('file', selectedFile);
         formData.append('categoryID', String(selectedAttachmentType?.id));
+        formData.append('documentTypeID', String(3));
 
         const res = await uploadPatientDocs(formData);
         if (res) {
@@ -129,6 +128,18 @@ export default function DocumentsTab({
       }, 100);
     }
   };
+
+  const getAttachmentTypeDropdown = async () => {
+    const res = await fetchAttachmentTypeDropdown();
+    if (res) {
+      setAttachmentTypeDropdown(res);
+    }
+  };
+
+  useEffect(() => {
+    getAttachmentTypeDropdown();
+  }, []);
+
   return (
     <>
       <StatusModal
@@ -216,11 +227,7 @@ export default function DocumentsTab({
                                 placeholder="Attachment Type"
                                 showSearchBar={true}
                                 disabled={false}
-                                data={
-                                  lookupsData?.documentAttachmentType
-                                    ? (lookupsData?.documentAttachmentType as SingleSelectDropDownDataType[])
-                                    : []
-                                }
+                                data={attachmentTypeDropdown}
                                 selectedValue={selectedAttachmentType}
                                 onSelect={(value) => {
                                   setSelectedAttachmentType(value);
@@ -380,10 +387,16 @@ export default function DocumentsTab({
                             onClick={async () => {
                               const downloadDocData =
                                 await downloadDocumentBase64(uploadDocRow.id);
-                              if (downloadDocData && downloadDocData.data) {
-                                const pdfResult = downloadDocData.data;
+                              if (
+                                downloadDocData &&
+                                downloadDocData.documentBase64
+                              ) {
+                                const pdfResult =
+                                  downloadDocData.documentBase64;
                                 const pdfWindow = window.open('');
-                                if (downloadDocData.fileType !== '.pdf') {
+                                if (
+                                  downloadDocData.documentExtension !== '.pdf'
+                                ) {
                                   if (pdfWindow) {
                                     pdfWindow.document.write(
                                       `<iframe  width='100%' height='100%'  style='position:fixed; top:0; left:0; bottom:0; right:0; transform: translate(5%, 5%); width:100%; height:100%; border:none; margin:0; padding:0; overflow:hidden; z-index:999999;' src='data:image/png;base64, ${encodeURI(
@@ -410,12 +423,15 @@ export default function DocumentsTab({
                             onClick={async () => {
                               const downloadDocData =
                                 await downloadDocumentBase64(uploadDocRow.id);
-                              if (downloadDocData && downloadDocData.data) {
+                              if (
+                                downloadDocData &&
+                                downloadDocData.documentBase64
+                              ) {
                                 const a = document.createElement('a');
-                                a.href = `data:application/octet-stream;base64,${downloadDocData.data}`;
+                                a.href = `data:application/octet-stream;base64,${downloadDocData.documentBase64}`;
                                 a.download =
-                                  downloadDocData.fileName +
-                                  downloadDocData.fileType;
+                                  downloadDocData.documentName +
+                                  downloadDocData.documentExtension;
                                 a.click();
                               }
                             }}

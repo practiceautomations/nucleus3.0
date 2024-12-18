@@ -724,11 +724,12 @@ const AllClaimsTab = forwardRef<PrintChildRef>((_, ref) => {
     findDataAndResetParams(obj);
     getAllClaimsSearchStatusCategories();
   };
+
   useEffect(() => {
-    if (isClaimTypeChanged) {
+    if (isClaimTypeChanged || selectedWorkGroupData) {
       onCinfirm();
     }
-  }, [isClaimTypeChanged]);
+  }, [isClaimTypeChanged, selectedWorkGroupData]);
   const isLoaded = useRef(false);
   useEffect(() => {
     if (!isLoaded.current && !searchCriterea.startDate) {

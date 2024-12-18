@@ -86,7 +86,15 @@ export default function GridModal({
           }, 300);
         }}
       >
-        <Popper id={id} open={open} anchorEl={anchorEl} className="z-[13]">
+        <Popper
+          id={id}
+          open={open}
+          anchorEl={anchorEl}
+          onPointerEnterCapture={undefined} // Ensure this event handler is defined
+          onPointerLeaveCapture={undefined}
+          placeholder=""
+          className="z-[13]"
+        >
           <div className="mt-1 mr-7 flex flex-col items-start justify-start rounded-lg border border-gray-200 bg-white">
             <div className="inline-flex items-start justify-start">
               {children}

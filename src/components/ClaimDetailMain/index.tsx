@@ -1912,14 +1912,14 @@ export default function ClaimDetail({
       ) => {
         const updateEAttachData = {
           documentID: uploadDocRow.id,
-          eAttachment: !uploadDocRow.e_attachment,
+          eAttachement: !uploadDocRow.eAttachment,
         };
         const res = await updateClaimDocumentEAttachment(updateEAttachData);
         if (res) {
           if (documantData) {
             const latestData = documantData.map((row) => {
               if (row && row?.id === uploadDocRow.id) {
-                return { ...row, e_attachment: !uploadDocRow.e_attachment };
+                return { ...row, eAttachment: !uploadDocRow.eAttachment };
               }
               return { ...row };
             });
@@ -2018,7 +2018,7 @@ export default function ClaimDetail({
                         <AppTableCell cls="!text-center">
                           <CheckBox
                             id="checkbox1"
-                            checked={uploadDocRow.e_attachment}
+                            checked={uploadDocRow.eAttachment}
                             onChange={() => {
                               updateEAttachmentClaimDoc(uploadDocRow);
                             }}
@@ -2045,10 +2045,17 @@ export default function ClaimDetail({
                                     await downloadDocumentBase64(
                                       uploadDocRow.id
                                     );
-                                  if (downloadDocData && downloadDocData.data) {
-                                    const pdfResult = downloadDocData.data;
+                                  if (
+                                    downloadDocData &&
+                                    downloadDocData.documentBase64
+                                  ) {
+                                    const pdfResult =
+                                      downloadDocData.documentBase64;
                                     const pdfWindow = window.open('');
-                                    if (downloadDocData.fileType !== '.pdf') {
+                                    if (
+                                      downloadDocData.documentExtension !==
+                                      '.pdf'
+                                    ) {
                                       if (pdfWindow) {
                                         pdfWindow.document.write(
                                           `<iframe  width='100%' height='100%'  style='position:fixed; top:0; left:0; bottom:0; right:0; transform: translate(5%, 5%); width:100%; height:100%; border:none; margin:0; padding:0; overflow:hidden; z-index:999999;' src='data:image/png;base64, ${encodeURI(
@@ -2077,12 +2084,15 @@ export default function ClaimDetail({
                                     await downloadDocumentBase64(
                                       uploadDocRow.id
                                     );
-                                  if (downloadDocData && downloadDocData.data) {
+                                  if (
+                                    downloadDocData &&
+                                    downloadDocData.documentBase64
+                                  ) {
                                     const a = document.createElement('a');
-                                    a.href = `data:application/octet-stream;base64,${downloadDocData.data}`;
+                                    a.href = `data:application/octet-stream;base64,${downloadDocData.documentBase64}`;
                                     a.download =
-                                      downloadDocData.fileName +
-                                      downloadDocData.fileType;
+                                      downloadDocData.documentName +
+                                      downloadDocData.documentExtension;
                                     a.click();
                                   }
                                 }}

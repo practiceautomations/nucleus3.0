@@ -29,8 +29,10 @@ import useOnceEffect from '@/utils/useOnceEffect';
 import AppDatePicker from '../UI/AppDatePicker';
 import Button, { ButtonType } from '../UI/Button';
 import CloseButton from '../UI/CloseButton';
+import CrossoverInsurancePayment from '../UI/CrossoverInsurancePayment';
 import InputField from '../UI/InputField';
 import InputFieldAmount from '../UI/InputFieldAmount';
+import Modal from '../UI/Modal';
 import RadioButton from '../UI/RadioButton';
 import SectionHeading from '../UI/SectionHeading';
 import type { SingleSelectDropDownDataType } from '../UI/SingleSelectDropDown';
@@ -100,6 +102,12 @@ export default function PatientInsurance({
   const [selectedPolicyEndDate, setSelectedPolicyEndDate] =
     useState<Date | null>(null);
   const [selectedDOB, setSelectedDOB] = useState<Date | null>(null);
+
+  const [showCrossoverClaimModal, setShowCrossoverClaimModal] =
+    useState<boolean>(false);
+  // const [selectedCrossOverChargeId, setSelectedCrossOverChargeId] =
+  //    useState<number>();
+
   useEffect(() => {
     if (selectedPatientID) {
       setPatientInsranceData({
@@ -420,6 +428,8 @@ export default function PatientInsurance({
             statusModalType: StatusModalType.ERROR,
             description: 'Something Went Wrong',
           });
+        } else if (patientInsuranceData.payerResponsibilityID !== 1) {
+          setShowCrossoverClaimModal(true);
         } else {
           onClose();
         }
@@ -1396,6 +1406,30 @@ export default function PatientInsurance({
             >
               Save New Insurance
             </Button>
+
+            <Modal
+              open={showCrossoverClaimModal}
+              onClose={() => {}}
+              modalContentClassName="relative w-[1232px] overflow-hidden rounded-lg bg-white shadow-xl transition-all sm:my-8 w-full"
+            >
+              <CrossoverInsurancePayment
+                patientID={selectedPatientID || 0}
+                insResponsibilityType={
+                  // eslint-disable-next-line no-nested-ternary
+                  patientInsuranceData.payerResponsibilityID === 2
+                    ? 'Primary'
+                    : patientInsuranceData.payerResponsibilityID === 3
+                    ? 'Secondary'
+                    : ''
+                }
+                groupID={groupID || 0}
+                onClose={() => {
+                  setShowCrossoverClaimModal(false);
+                  // setSelectedCrossOverChargeId(undefined);
+                  onClose();
+                }}
+              />
+            </Modal>
           </div>
         </div>
       </div>

@@ -21,6 +21,7 @@ import Button, { ButtonType } from '../UI/Button';
 import type { FilterModalTabProps } from '../UI/FilterModal';
 import FilterModal from '../UI/FilterModal';
 import InputField from '../UI/InputField';
+import RadioButton from '../UI/RadioButton';
 import type { SingleSelectDropDownDataType } from '../UI/SingleSelectDropDown';
 import SingleSelectDropDown from '../UI/SingleSelectDropDown';
 import type { StatusModalProps } from '../UI/StatusModal';
@@ -94,6 +95,7 @@ export function AddEditViewNotes({
     noteTypeID: noteTypeID || 0,
     subject: subject || '',
     comment: '',
+    alert: 'false',
   };
   const [addEditNoteCriteria, setAddEditNoteCriteria] =
     React.useState<CreateNotesCriteria>(defaultAddEditNoteCriteria);
@@ -111,6 +113,7 @@ export function AddEditViewNotes({
         noteTypeID: noteDetailsData.noteTypeID,
         subject: noteDetailsData.subject,
         comment: noteDetailsData.comment,
+        alert: noteDetailsData.alert === 'Yes' ? 'true' : 'false',
       });
       setIsAddEditMode(false);
     } else {
@@ -413,6 +416,31 @@ export function AddEditViewNotes({
                       disabled={!isAddEditMode}
                     />
                   </div>
+                </div>
+                <div className={`w-[400px]  flex flex-row gap-2 py-2`}>
+                  <label className="flex items-center text-sm font-medium leading-5 text-gray-900">
+                    Show Alert: <span className="text-cyan-500">*</span>
+                  </label>
+                  <RadioButton
+                    disabled={!isAddEditMode}
+                    data={[
+                      {
+                        value: 'true',
+                        label: 'Yes',
+                      },
+                      {
+                        value: 'false',
+                        label: 'No',
+                      },
+                    ]}
+                    checkedValue={addEditNoteCriteria.alert}
+                    onChange={(e) => {
+                      handleSetAddEditNoteCriteria({
+                        ...addEditNoteCriteria,
+                        alert: e.target.value,
+                      });
+                    }}
+                  />
                 </div>
               </div>
               <div className="flex h-full w-full flex-col justify-end overflow-auto">
@@ -816,46 +844,48 @@ export default function ViewNotes({
 
   const viewNote = (note: ClaimNotesData) => {
     return (
-      <div
-        key={note.id}
-        className="inline-flex h-[96px] w-full items-start  justify-between border-b border-gray-200 py-4 pl-6 pr-4"
-      >
-        <div className="flex items-center justify-start">
-          <div className="inline-flex h-[34px] w-[34px] flex-col items-center justify-center ">
-            <div className="flex w-full flex-1 flex-col items-center justify-center rounded-full bg-gray-100 shadow">
-              <Icon name={'userNote'} size={20} />
+      <>
+        <div
+          key={note.id}
+          className="inline-flex h-[96px] w-full items-start  justify-between border-b border-gray-200 py-4 pl-6 pr-4"
+        >
+          <div className="flex items-center justify-start">
+            <div className="inline-flex h-[34px] w-[34px] flex-col items-center justify-center ">
+              <div className="flex w-full flex-1 flex-col items-center justify-center rounded-full bg-gray-100 shadow">
+                <Icon name={'userNote'} size={20} />
+              </div>
+            </div>
+            <div className="ml-4 inline-flex flex-col items-start justify-start">
+              <p className="text-base font-semibold leading-normal">
+                {note.createdBy}
+              </p>
+              <p className="text-sm font-bold leading-tight text-gray-800">
+                {note.noteType}
+              </p>
+              <p className="w-[261px] truncate text-sm leading-tight text-gray-500">
+                {note.comment}
+              </p>
             </div>
           </div>
-          <div className="ml-4 inline-flex flex-col items-start justify-start">
-            <p className="text-base font-semibold leading-normal">
-              {note.createdBy}
+          <div className="inline-flex h-full flex-col items-end justify-between">
+            <p className="mt-1 text-xs leading-3 text-gray-500">
+              {DateToStringPipe(note.createdOn, 2)}
             </p>
-            <p className="text-sm font-bold leading-tight text-gray-800">
-              {note.noteType}
-            </p>
-            <p className="w-[261px] truncate text-sm leading-tight text-gray-500">
-              {note.comment}
+            <p
+              data-testid="viewNote"
+              className="cursor-pointer text-sm leading-tight text-cyan-500"
+              onClick={() => {
+                onViewNote(note);
+                if (tabOptions?.length) {
+                  getNoteTypeData(note.category);
+                }
+              }}
+            >
+              View Notes
             </p>
           </div>
         </div>
-        <div className="inline-flex h-full flex-col items-end justify-between">
-          <p className="mt-1 text-xs leading-3 text-gray-500">
-            {DateToStringPipe(note.createdOn, 2)}
-          </p>
-          <p
-            data-testid="viewNote"
-            className="cursor-pointer text-sm leading-tight text-cyan-500"
-            onClick={() => {
-              onViewNote(note);
-              if (tabOptions?.length) {
-                getNoteTypeData(note.category);
-              }
-            }}
-          >
-            View Note
-          </p>
-        </div>
-      </div>
+      </>
     );
   };
 

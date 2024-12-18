@@ -18,6 +18,8 @@ const getMenuItems = (state: AppState) => state.login.menuItems;
 
 const getUserEmail = (state: AppState) => state.login.email;
 
+const getUserPassword = (state: AppState) => state.login.password;
+
 // const getSelectedMenuItem = (state: AppState) => state.login.selectedMenuItem;
 export const getUserSelector: Selector<AppState, User | null> = createSelector(
   getUser,
@@ -34,6 +36,11 @@ export const getEmailSelector: Selector<AppState, string> = createSelector(
   (email) => email
 );
 
+export const getPasswordSelector: Selector<AppState, string> = createSelector(
+  getUserPassword,
+  (password) => password
+);
+
 export const getUserErrorSelector: Selector<AppState, string | null> =
   createSelector(getUserError, (error) => error);
 
@@ -42,6 +49,7 @@ export const getUserloginAttemptsSelector: Selector<AppState, number> =
 
 export const getMenuItemsSelector: Selector<AppState, MenuItemType[]> =
   createSelector(getMenuItems, (error) => error);
+
 // export const getSelectedMenuItemSelector: Selector<
 //   AppState,
 //   MenuItemType | null

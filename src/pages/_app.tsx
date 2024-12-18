@@ -52,7 +52,12 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
     const dispatch = useDispatch();
 
     const { pathname } = window.location;
-    const defaultAllowedLinks = ['/login', '/forgot-password', '/'];
+    const defaultAllowedLinks = [
+      '/login',
+      '/forgot-password',
+      '/',
+      '/tfa-verification',
+    ];
     const [pageIsAuth, setPageIsAuth] = useState<boolean>();
 
     dispatch(setGlobalModal(undefined));
@@ -154,7 +159,11 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
       if (typeof token === 'string') {
         dispatch(isScreenInActive(false));
         // Check if the current URL is 'Login' or 'HomePage/RootPage'
-        if (pathname === '/login' || pathname === '/') {
+        if (
+          pathname === '/login' ||
+          pathname === '/' ||
+          pathname === '/tfa-verification'
+        ) {
           if (
             user?.defaultModuleURL &&
             allowedLinksRes.includes(user.defaultModuleURL)

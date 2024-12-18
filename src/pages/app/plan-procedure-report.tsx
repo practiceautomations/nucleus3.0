@@ -1328,16 +1328,16 @@ const PlanProcedureReport = () => {
                 onClose={() => {
                   setIsProcedureCountDetailOpen(false);
                 }}
-                modalContentClassName="rounded-lg bg-gray-100  text-left shadow-xl  w-[1232px]"
+                modalContentClassName="h-[calc(100%-80px)] w-[calc(100%-220px)] relative rounded-lg bg-white shadow-xl transition-all sm:my-8"
               >
-                <div className="flex flex-col ">
+                <div className="flex h-full w-full flex-col">
                   <PopupHeadingSection
                     label={'Procedure Count Details'}
                     onClose={() => {
                       setIsProcedureCountDetailOpen(false);
                     }}
                   />
-                  <div className="flex w-full flex-col px-6">
+                  <div className="flex h-full w-full flex-col overflow-y-auto px-6">
                     <div hidden={reportCollapseInfo.detail} className="h-full">
                       <SearchDetailGrid
                         pageNumber={countDetailsCriteria.pageNumber}

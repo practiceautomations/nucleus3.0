@@ -74,6 +74,7 @@ import {
   downloadDocumentBase64,
   fetchAllClaimsSearchData,
   fetchAllClaimsSearchDataClaimIDS,
+  fetchAttachmentTypeDropdown,
   fetchInsuranceData,
   fetchPatientDataByID,
   fetchPostingDate,
@@ -119,6 +120,7 @@ import type {
   GetAllClaimsSearchDataResult,
   GetLinkableClaimsForMedicalCaseCriteria,
   GetPatientRequestData,
+  IdValuePair,
   LookupDropdownsData,
   PatientDocumnetData,
   PatientFinicalTabData,
@@ -319,7 +321,9 @@ export default function RegisterPatient({ selectedPatientID }: Tprops) {
       amount: undefined,
     }
   );
-
+  const [attachmentTypeDropdown, setAttachmentTypeDropdown] = useState<
+    IdValuePair[]
+  >([]);
   const [isReversed, setIsRevered] = useState<boolean>(false);
   const [postingDateModel, setPostingDateModel] = useState<boolean>(false);
   const [isDelete, setIsDelete] = useState<boolean>(false);
@@ -1148,6 +1152,17 @@ export default function RegisterPatient({ selectedPatientID }: Tprops) {
     });
   };
 
+  const getAttachmentTypeDropdown = async () => {
+    const res = await fetchAttachmentTypeDropdown();
+    if (res) {
+      setAttachmentTypeDropdown(res);
+    }
+  };
+
+  useEffect(() => {
+    getAttachmentTypeDropdown();
+  }, []);
+
   const getPatientLedgerData = async () => {
     const res = await getAdvancePayament(selectedPatientID);
     if (res) {
@@ -1207,11 +1222,7 @@ export default function RegisterPatient({ selectedPatientID }: Tprops) {
     useState<SingleSelectDropDownDataType>();
   const getDocumentDataByID = async () => {
     if (selectedRenderingGroup) {
-      const res = await getPatientDocumentData(
-        selectedPatientID,
-        selectedRenderingGroup?.id,
-        null
-      );
+      const res = await getPatientDocumentData(selectedPatientID);
       if (res) {
         setDocumentData(res);
         setTabs(
@@ -4305,6 +4316,7 @@ export default function RegisterPatient({ selectedPatientID }: Tprops) {
       if (selectedPatientID) {
         const formData = new FormData();
         formData.append('patientID', String(selectedPatientID));
+        formData.append('attachedID', String(selectedPatientID));
         formData.append(
           'groupID',
           selectedRenderingGroup?.id ? String(selectedRenderingGroup?.id) : ''
@@ -4315,6 +4327,7 @@ export default function RegisterPatient({ selectedPatientID }: Tprops) {
         );
         formData.append('file', selectedFile);
         formData.append('categoryID', String(selectedAttachmentType?.id));
+        formData.append('documentTypeID', String(3));
 
         const res = await uploadPatientDocs(formData);
         if (res) {
@@ -7475,11 +7488,7 @@ export default function RegisterPatient({ selectedPatientID }: Tprops) {
                                                 placeholder="Attachment Type"
                                                 showSearchBar={true}
                                                 disabled={false}
-                                                data={
-                                                  lookupsData?.documentAttachmentType
-                                                    ? (lookupsData?.documentAttachmentType as SingleSelectDropDownDataType[])
-                                                    : []
-                                                }
+                                                data={attachmentTypeDropdown}
                                                 selectedValue={
                                                   selectedAttachmentType
                                                 }
@@ -7668,14 +7677,14 @@ export default function RegisterPatient({ selectedPatientID }: Tprops) {
                                                 );
                                               if (
                                                 downloadDocData &&
-                                                downloadDocData.data
+                                                downloadDocData.documentBase64
                                               ) {
                                                 const pdfResult =
-                                                  downloadDocData.data;
+                                                  downloadDocData.documentBase64;
                                                 const pdfWindow =
                                                   window.open('');
                                                 if (
-                                                  downloadDocData.fileType !==
+                                                  downloadDocData.documentName !==
                                                   '.pdf'
                                                 ) {
                                                   if (pdfWindow) {
@@ -7708,14 +7717,14 @@ export default function RegisterPatient({ selectedPatientID }: Tprops) {
                                                 );
                                               if (
                                                 downloadDocData &&
-                                                downloadDocData.data
+                                                downloadDocData.documentBase64
                                               ) {
                                                 const a =
                                                   document.createElement('a');
-                                                a.href = `data:application/octet-stream;base64,${downloadDocData.data}`;
+                                                a.href = `data:application/octet-stream;base64,${downloadDocData.documentBase64}`;
                                                 a.download =
-                                                  downloadDocData.fileName +
-                                                  downloadDocData.fileType;
+                                                  downloadDocData.documentName +
+                                                  downloadDocData.documentExtension;
                                                 a.click();
                                               }
                                             }}
