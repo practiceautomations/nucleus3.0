@@ -253,7 +253,7 @@ export default function ChargeDetail({
         >
           <div className="flex items-center justify-start space-x-4">
             <Icon name={'drag'} size={19} color={IconColors.GRAY_300} />
-            <p className="text-sm font-bold leading-tight text-gray-500">
+            <p className=" flex whitespace-nowrap text-sm font-bold leading-tight text-gray-500">
               Charge ID # {data.chargeID}
             </p>
             <Badge
@@ -278,7 +278,7 @@ export default function ChargeDetail({
               }}
             >
               <Icon name={'eye'} size={16} color={IconColors.NONE} />
-              <p className="text-sm font-medium leading-tight text-gray-700">
+              <p className="whitespace-nowrap text-sm font-medium leading-tight text-gray-700">
                 View Charge Details
               </p>
             </Button>
@@ -401,7 +401,7 @@ export default function ChargeDetail({
               onClick={() => {}}
             >
               <Icon name={'pencil'} size={16} color={IconColors.NONE} />
-              <p className="text-sm font-medium leading-tight text-gray-700">
+              <p className="whitespace-nowrap text-sm font-medium leading-tight text-gray-700">
                 Change Charge Status
               </p>
             </Button>
@@ -411,7 +411,7 @@ export default function ChargeDetail({
               onClick={onPaymentClaimClick || (() => '')}
             >
               <Icon name={'payment'} size={16} color={IconColors.NONE} />
-              <p className="text-sm font-medium leading-tight text-white">
+              <p className="whitespace-nowrap text-sm font-medium leading-tight text-white">
                 Post Payment
               </p>
             </Button>
@@ -421,7 +421,7 @@ export default function ChargeDetail({
               onClick={onCrossOverClaimClick || (() => '')}
             >
               <Icon name={'copy'} size={16} color={IconColors.NONE} />
-              <p className="text-sm font-medium leading-tight text-white">
+              <p className="whitespace-nowrap text-sm font-medium leading-tight text-white">
                 Create Crossover Claim
               </p>
             </Button>

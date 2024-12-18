@@ -13,6 +13,7 @@ import GridModal from '@/components/Grid/Modal';
 import Icon from '@/components/Icon';
 import PageHeader from '@/components/PageHeader';
 import PatientDetailModal from '@/components/PatientDetailModal';
+import PatientInsurance from '@/components/PatientInsurance';
 import AppDatePicker from '@/components/UI/AppDatePicker';
 import Badge from '@/components/UI/Badge';
 import Breadcrumbs from '@/components/UI/Breadcrumbs/breadcrumbs';
@@ -88,6 +89,8 @@ import {
   deleteDocument,
   downloadDocumentBase64,
   fetchClaimDataByID,
+  fetchPatientDataByID,
+  fetchPatientInsuranceDataById,
   fetchPostingDate,
   getChargesFee,
   getDuplicateWarning,
@@ -136,7 +139,9 @@ import type {
   FacilityData,
   GetDuplicateWarningCriteria,
   GetLinkableClaimsForMedicalCaseCriteria,
+  GetPatientRequestData,
   PatientInsuranceData,
+  PatientInsuranceDataById,
   PatientSearchCriteria,
   PatientSearchOutput,
   PostingDateCriteria,
@@ -186,10 +191,17 @@ interface Tprops {
   reRenderScreen: () => void;
   selectedClaimID: number | undefined;
 }
+
 export default function CreateClaim({
   reRenderScreen,
   selectedClaimID,
 }: Tprops) {
+  const [isInsuranceModalOpen, setIsInsuranceModalOpen] = useState(false);
+  const [isViewInsuranceMode, setIsViewInsuranceMode] = useState(false);
+
+  const [insuranceSubscriberData, setInsuranceSubscriberData] = useState<
+    GetPatientRequestData | undefined
+  >();
   // API Calls
   const [patientsearch, setPatientsearch] = useState<PatientSearchCriteria>({
     searchValue: '',
@@ -199,6 +211,8 @@ export default function CreateClaim({
     providers: [],
   });
   const [chargeDragOverIndex, setChargeDragOverIndex] = useState<number>();
+  const [selectedPatientInsuranceData, setSelectedPatientInsuranceData] =
+    useState<PatientInsuranceDataById>();
   const selectedWorkGroupData = useSelector(getselectdWorkGroupsIDsSelector);
   useEffect(() => {
     if (selectedWorkGroupData) {
@@ -324,9 +338,15 @@ export default function CreateClaim({
   >([]);
   const [selectedSupervisingProvider, setSelectedSupervisingProvider] =
     useState<SingleSelectDropDownDataType | undefined>();
+
   const [selectedPatientData, setSelectedPatientData] = useState<
     PatientSearchOutput | undefined
   >();
+
+  // const [selectedPatientData, setSelectedPatientData] = useState<
+  //   GetPatientRequestData | undefined
+  // >();
+
   // Save Charges Api Call
   const [batchNumber, setbatchNumber] = useState<
     SingleValue<SingleSelectGridDropdownDataType> | undefined
@@ -410,6 +430,7 @@ export default function CreateClaim({
       data: [],
     },
   ]);
+
   // const [icdSearch, setIcdSearch] = useState<ICDSearchCriteria>({
   //   searchValue: '',
   // });
@@ -704,6 +725,19 @@ export default function CreateClaim({
       );
     }
   };
+
+  const [selectedPatientAllData, setSelectedPatientAllData] =
+    useState<GetPatientRequestData>();
+
+  const getRegisterPatientDataByID = async (id: number) => {
+    const ress = await fetchPatientDataByID(id);
+    if (ress) {
+      setSelectedPatientAllData(ress);
+    } else {
+      console.log('Error fetching patient all data.');
+    }
+  };
+
   useOnceEffect(() => {
     if (selectedCpt && selectedPractice) {
       const ndcData = {
@@ -1333,6 +1367,27 @@ export default function CreateClaim({
   const [selectedPrimaryInsurance, setSelectedPrimaryInsurance] = useState<
     SingleSelectDropDownDataType | undefined
   >();
+
+  const showPatientModal = async () => {
+    const data = await fetchPatientInsuranceDataById(
+      selectedPrimaryInsurance?.id
+    );
+    if (data) {
+      setSelectedPatientInsuranceData(data);
+    } else {
+      console.log('Api error.');
+    }
+    // getting all users data
+    if (selectedPatient && typeof selectedPatient.id === 'number') {
+      getRegisterPatientDataByID(selectedPatient.id);
+    } else {
+      // Handle the case where selectedPatient is undefined or id is not a number
+      console.log('Invalid patient ID.');
+    }
+    setIsInsuranceModalOpen(true);
+    setIsViewInsuranceMode(false);
+  };
+
   const onSelectPrimaryInsurance = (value: SingleSelectDropDownDataType) => {
     if (selectedPatient) {
       setSelectedPrimaryInsurance(value);
@@ -1359,6 +1414,8 @@ export default function CreateClaim({
           });
         }
       }
+    } else {
+      console.log('selected patient is null.');
     }
   };
   const [selectedMedicalCaseDropdownData, setSelectedMedicalCaseDropdownData] =
@@ -1392,7 +1449,7 @@ export default function CreateClaim({
               ...chargeData,
               charge: {
                 ...chargeData.charge,
-                fee: res.fee || 0,
+                fee: calculatedFee || 0,
                 insuranceAmount: selectedPrimaryInsurance ? calculatedFee : 0,
                 patientAmount: !selectedPrimaryInsurance ? calculatedFee : 0,
               },
@@ -3166,15 +3223,16 @@ export default function CreateClaim({
     }
     if (selectedFile && claimID && selectedattachmentType && selectedGroup) {
       const file: File = selectedFile;
+      const documentTypeID = 1;
       const formData: FormData = new FormData();
       formData.append('file', file);
-      formData.append('claimID', claimID.toString());
+      formData.append('attachedID', claimID.toString());
       formData.append(
         'patientID',
         selectedPatient ? selectedPatient.id.toString() : ''
       );
       formData.append(
-        'clientID',
+        'groupID',
         selectedGroup ? selectedGroup.id.toString() : ''
       );
       formData.append(
@@ -3185,6 +3243,7 @@ export default function CreateClaim({
         'categoryID',
         selectedattachmentType ? selectedattachmentType.id.toString() : ''
       );
+      formData.append('documentTypeID', documentTypeID.toString());
       formData.append('eAttachment', '');
       const res = await uploadFile(formData);
       if (res) {
@@ -3200,14 +3259,14 @@ export default function CreateClaim({
   ) => {
     const updateEAttachData = {
       documentID: uploadDocRow.id,
-      eAttachment: !uploadDocRow.e_attachment,
+      eAttachement: !uploadDocRow.eAttachment,
     };
     const res = await updateClaimDocumentEAttachment(updateEAttachData);
     if (res) {
       if (uploadDocumentData) {
         const latestData = uploadDocumentData.map((row) => {
           if (row && row?.id === uploadDocRow.id) {
-            return { ...row, e_attachment: !uploadDocRow.e_attachment };
+            return { ...row, eAttachment: !uploadDocRow.eAttachment };
           }
           return { ...row };
         });
@@ -4568,6 +4627,8 @@ export default function CreateClaim({
                               <Button
                                 buttonType={ButtonType.secondary}
                                 cls={`h-[38px] w-[38px] justify-center !px-2 !py-1 text-sm inline-flex `}
+                                onClick={showPatientModal}
+                                disabled={!selectedPrimaryInsurance?.value}
                               >
                                 <Icon
                                   name={'pencil'}
@@ -4575,6 +4636,129 @@ export default function CreateClaim({
                                   color={IconColors.GRAY}
                                 />
                               </Button>
+
+                              {/* patient insurance */}
+
+                              <Modal
+                                open={isInsuranceModalOpen}
+                                onClose={() => {
+                                  // setIsInsuranceModalOpen(false);
+                                  // setIsViewInsuranceMode(false);
+                                }}
+                                modalContentClassName="h-[calc(100%-80px)] w-[calc(100%-220px)] relative rounded-lg bg-white shadow-xl transition-all sm:my-8"
+                              >
+                                <PatientInsurance
+                                  onClose={() => {
+                                    setIsInsuranceModalOpen(false);
+                                    // setIsViewInsuranceMode(false);
+                                    // getPatientInsuranceData();
+                                    setSelectedPatientInsuranceData(undefined);
+                                  }}
+                                  selectedPatientID={
+                                    selectedPatient?.id || null
+                                  }
+                                  groupID={selectedPatientData?.groupID}
+                                  selectedPatientInsuranceData={
+                                    selectedPatientInsuranceData &&
+                                    selectedPatientData?.groupID
+                                      ? {
+                                          id: selectedPatientInsuranceData.patientInsuranceID,
+                                          patientID:
+                                            selectedPatientInsuranceData.patientID,
+                                          clientID:
+                                            selectedPatientData?.groupID,
+                                          insuranceID:
+                                            selectedPatientInsuranceData.insuranceID,
+                                          insuranceName: '',
+                                          payerResponsibility: '',
+                                          insuranceNumber:
+                                            selectedPatientInsuranceData.insuranceNumber?.toString(),
+                                          groupNumber:
+                                            selectedPatientInsuranceData.groupNumber?.toString(),
+                                          groupName:
+                                            selectedPatientInsuranceData.groupName,
+                                          wcClaimNumber:
+                                            selectedPatientInsuranceData.wcClaimNumber?.toString(),
+                                          policyStartDate:
+                                            selectedPatientInsuranceData.policyStartDate,
+                                          policyEndDate:
+                                            selectedPatientInsuranceData.policyEndDate,
+                                          firstName:
+                                            selectedPatientInsuranceData.firstName,
+                                          middleName:
+                                            selectedPatientInsuranceData.middleName,
+                                          copay:
+                                            selectedPatientInsuranceData.copay,
+                                          assignment:
+                                            selectedPatientInsuranceData.assignment,
+                                          genderID:
+                                            selectedPatientInsuranceData.genderID,
+                                          homePhone:
+                                            selectedPatientInsuranceData.homePhone,
+                                          officePhone:
+                                            selectedPatientInsuranceData.officePhone,
+                                          officePhoneExtension:
+                                            selectedPatientInsuranceData.officePhoneExtension,
+                                          email:
+                                            selectedPatientInsuranceData.email,
+                                          cell: selectedPatientInsuranceData.cell,
+                                          lastName:
+                                            selectedPatientInsuranceData.lastName,
+                                          address1:
+                                            selectedPatientInsuranceData.address1,
+                                          address2:
+                                            selectedPatientInsuranceData.address2,
+                                          city: selectedPatientInsuranceData.city,
+                                          state:
+                                            selectedPatientInsuranceData.state,
+                                          zipCode:
+                                            selectedPatientInsuranceData.zipCode,
+                                          zipCodeExtension:
+                                            selectedPatientInsuranceData.zipCodeExtension,
+                                          phone:
+                                            selectedPatientInsuranceData.homePhone,
+                                          dob: selectedPatientInsuranceData.dob,
+                                          relation:
+                                            selectedPatientInsuranceData.insuredRelationID?.toString(),
+                                          payerResponsibilityID:
+                                            selectedPatientInsuranceData.payerResponsibilityID,
+                                          relationID:
+                                            selectedPatientInsuranceData.insuredRelationID,
+                                          active:
+                                            selectedPatientInsuranceData.active,
+                                          eligibilityRequestID: -1,
+                                          checkEligibilityDate: '',
+                                          comment:
+                                            selectedPatientInsuranceData.comment,
+                                          mspTypeID:
+                                            selectedPatientInsuranceData.mspTypeID,
+                                          accidentDate:
+                                            selectedPatientInsuranceData.accidentDate,
+                                          accidentTypeID:
+                                            selectedPatientInsuranceData.accidentTypeID,
+                                          accidentStateID:
+                                            selectedPatientInsuranceData.accidentStateID,
+                                          fax: selectedPatientInsuranceData.fax,
+                                        }
+                                      : null
+                                  }
+                                  onSelectSelf={(value: boolean) => {
+                                    if (value === true) {
+                                      setInsuranceSubscriberData(
+                                        selectedPatientAllData
+                                      );
+                                    } else {
+                                      setInsuranceSubscriberData(undefined);
+                                    }
+                                  }}
+                                  insuranceSubscriberData={
+                                    insuranceSubscriberData || null
+                                  }
+                                  isViewMode={isViewInsuranceMode}
+                                />
+                              </Modal>
+
+                              {/* end */}
 
                               <div className={`flex pl-[24px]`}>
                                 <div className={`gap-1 w-[280px]`}>
@@ -8582,7 +8766,7 @@ export default function CreateClaim({
                                       <AppTableCell cls="!text-center">
                                         <CheckBox
                                           id="checkbox1"
-                                          checked={uploadDocRow.e_attachment}
+                                          checked={uploadDocRow.eAttachment}
                                           onChange={() => {
                                             updateEAttachmentClaimDoc(
                                               uploadDocRow
@@ -8626,14 +8810,14 @@ export default function CreateClaim({
                                                   );
                                                 if (
                                                   downloadDocData &&
-                                                  downloadDocData.data
+                                                  downloadDocData.documentBase64
                                                 ) {
                                                   const pdfResult =
-                                                    downloadDocData.data;
+                                                    downloadDocData.documentBase64;
                                                   const pdfWindow =
                                                     window.open('');
                                                   if (
-                                                    downloadDocData.fileType !==
+                                                    downloadDocData.documentExtension !==
                                                     '.pdf'
                                                   ) {
                                                     if (pdfWindow) {
@@ -8666,14 +8850,14 @@ export default function CreateClaim({
                                                   );
                                                 if (
                                                   downloadDocData &&
-                                                  downloadDocData.data
+                                                  downloadDocData.documentBase64
                                                 ) {
                                                   const a =
                                                     document.createElement('a');
-                                                  a.href = `data:application/octet-stream;base64,${downloadDocData.data}`;
+                                                  a.href = `data:application/octet-stream;base64,${downloadDocData.documentBase64}`;
                                                   a.download =
-                                                    downloadDocData.fileName +
-                                                    downloadDocData.fileType;
+                                                    downloadDocData.documentName +
+                                                    downloadDocData.documentExtension;
                                                   a.click();
                                                 }
                                               }}

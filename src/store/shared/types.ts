@@ -473,16 +473,16 @@ export interface UploadedDocumentOutput {
   appendText: string;
   claimID: number;
   category: string;
-  e_attachment: boolean;
+  eAttachment: boolean;
   createdOn: string;
   createdBy: string;
 }
 
 export interface TDownloadClaimDocumentType {
   message: string;
-  fileName: string;
-  fileType: string;
-  data: string;
+  documentName: string;
+  documentExtension: string;
+  documentBase64: string;
 }
 export interface ChargeFeeCriteria {
   cptCode: string | undefined;
@@ -816,7 +816,7 @@ export interface CreateNotesCriteria {
   noteTypeID: number;
   subject: string;
   comment: string;
-  // alert: string;
+  alert: string;
 }
 export interface GetReferringProviderRequestPayload {
   groupID: number;
@@ -1838,9 +1838,10 @@ export interface TPaymentBatchType {
   batchBalance?: number;
 }
 export interface TDocumentBatchType {
-  documentBatchID?: number;
+  id?: number;
   description: string;
   groupID?: number;
+  practiceID?: number;
   group: string;
   groupEIN: string;
   postDate: string;
@@ -1853,6 +1854,8 @@ export interface TDocumentBatchType {
   batchTypeID?: number;
   batchType: string;
   batchStatusTime: string;
+  lockboxTypeID?: number;
+  lockboxType?: string;
 }
 export interface TPaymentBatchDetailType {
   paymentBatchID: number;
@@ -1976,6 +1979,13 @@ export interface GetPaymentPostingErrorsResult {
   severity: string;
   color: string;
   disablePayment: boolean;
+}
+
+export interface GetDocumentsProcessingErrorsResult {
+  documentErrorID: number;
+  documentID: number;
+  errorMessage: string;
+  documentTitle: string;
 }
 
 export interface ApplyPaymentPostingRsult {
@@ -2222,7 +2232,7 @@ export interface GetPaymentReportCriteria {
   claimCreatedTo: Date | null;
   claimCreatedBy: string | undefined;
   claimID: number | undefined;
-  cpt: string | undefined;
+  cpts: string[];
   chargeID: number | undefined;
   firstName: string | undefined;
   lastName: string | undefined;
@@ -2242,11 +2252,11 @@ export interface GetPaymentReportCriteria {
 }
 
 export interface DocumentSearchCriteria {
-  groupID: number;
+  groupIDS: number;
   batchTypeID?: number;
   batchID?: number;
-  statusID?: number;
-  text?: string;
+  batchStatusID?: number;
+  documentText?: string;
   documentTags?: string;
   sortColumn?: string;
   sortOrder?: string;
@@ -2256,7 +2266,8 @@ export interface DocumentSearchCriteria {
 }
 
 export interface BatchSearchCriteria {
-  groupID?: number;
+  groupIDS?: number;
+  practiceIDS?: number;
   batchID?: number;
   batchTypeID: string[];
   statusID?: number;
@@ -2266,6 +2277,17 @@ export interface BatchSearchCriteria {
   pageSize: number;
   followUpAssignee?: string;
   followupAssigneeID?: number;
+  sortByColumn?: string;
+  sortOrder: string;
+  getAllData: boolean;
+  getOnlyIDs: boolean;
+}
+
+export interface BatchDetailCriteria {
+  attachedID?: number;
+  typeID?: string;
+  pageNumber: number;
+  pageSize: number;
   sortByColumn?: string;
   sortOrder: string;
   getAllData: boolean;
@@ -2288,8 +2310,8 @@ export interface GetDocumentSearchAPIResult {
 }
 
 export interface GetBatchSearchAPIResult {
-  id?: number;
-  batchID?: number;
+  rid?: number;
+  documentBatchID?: number;
   description: string;
   status: string;
   batchTypeID: string;
@@ -2459,16 +2481,20 @@ export interface TPaymentPostingResult {
 }
 
 export interface TBatchUploadedDocument {
-  documentID: number | undefined;
+  id: number | undefined;
   title: string;
-  systemDocumentType: string;
+  documentType: string;
   createdOn: string;
   createdBy: string;
   file: File | undefined;
   documentPath: string;
   active: boolean | null;
+  documentStatus: string;
+  category: string;
+  additionalComment1: string;
+  additionalComment2: string;
+  total: number;
 }
-
 export interface GetAllClaimsSearchDataClaimIDSResult {
   claimID: number;
 }
@@ -2668,7 +2694,7 @@ export interface CreateCrossoverCriteria {
   postingDate?: Date;
   depositDate?: Date;
   checkNumber?: string;
-  secondaryInsuranceID: number;
+  secondaryInsuranceID: number | null;
   secondaryInsuranceAmount: number;
   crossoverAssigneeID: string;
   crossoverClaimNote: string;
@@ -2753,6 +2779,7 @@ export interface SummaryCodeLookup {
   description: string;
 }
 export interface SummaryBillingCharges {
+  claimID?: number;
   chargeID: number;
   cpt: string;
   cptDescription: string;
@@ -3296,6 +3323,45 @@ export interface GetEDIImportLogAPIResult {
   createdOn?: Date;
   total?: number;
 }
+
+export interface ERACheckReportCriteria {
+  groupID?: number;
+  eraCheckID?: string;
+  fromCheckDate?: Date;
+  toCheckDate?: Date;
+  fromCreatedDate?: Date;
+  toCreatedDate?: Date;
+  insuranceID?: number;
+  insurance?: string;
+  checkNumber?: string;
+  pageNumber: number;
+  pageSize?: number;
+  sortByColumn: string;
+  sortOrder: string;
+  getAllData: boolean;
+  getOnlyIDS: boolean;
+  ediLogID?: string;
+}
+
+export interface ERACheckReportAPIResult {
+  eraCheckID: number;
+  fileName: string;
+  cplCount: number;
+  serviceLineCount: number;
+  insurance: string;
+  checkNumber: number;
+  checkDate: Date | null;
+  checkAmount: number;
+  payeeName: string;
+  payeeNpi: string;
+  ediLogID: number;
+  timeStamp: Date | null;
+  total?: number;
+  totalPayment?: number;
+  totalCPLCount?: number;
+  totalServiceLineCount?: number;
+}
+
 export interface ReconciliationCriteria {
   groupID?: number;
   practiceID?: number;
@@ -3340,11 +3406,11 @@ export interface GetReconciledSearchAPIResult {
   total?: number;
 }
 export interface GetPaymentReconcilationLedgerCriteria {
-  groupID: number;
-  practiceID: number;
+  groupID?: number;
+  practiceID?: number;
   postingType: string;
   paymentNumber: string;
-  batchID: number;
+  batchID?: number;
   fromPaymentDate?: Date;
   toPaymentDate?: Date;
   fromDepositDate?: Date;
@@ -3378,6 +3444,7 @@ export interface GetPaymentReconcilationLedgerResult {
   reconsiledBy?: string;
   postingType?: string;
 }
+
 export interface ReconcilePayment {
   ledgerID: string;
   paymentNumber: string;
@@ -3426,6 +3493,13 @@ export type AllInsuranceData = {
 export interface GetAllInsuranceData {
   type: typeof FETCH_ALL_INSURANCE_DATA;
   payload: AllInsuranceData[];
+}
+
+export interface RejectedClaimsByTimeResult {
+  rid: number;
+  rejectionDate: string;
+  counts: number;
+  average: number;
 }
 
 export interface ClaimsScrubingDataType {
@@ -3486,6 +3560,11 @@ export interface ClaimDetailSummaryResult {
   charges: SummaryBillingCharges[];
   totalClaimBalance: number;
 }
+
+export interface CrossoverChargesByPatientIDResult {
+  charges: SummaryBillingCharges[];
+}
+
 export interface PatientLookupDropdown {
   states: PatietLookupType[];
   gender: PatietLookupType[];
@@ -3725,7 +3804,7 @@ export interface PaymentLedgerType {
   createdBy: string;
   disableReverse: boolean;
   eraCheckID: number | null;
-  // comments: string;
+  comments: string;
 }
 
 export interface ChargeDetailsCodeType {
@@ -4897,6 +4976,25 @@ export interface MonthlySummaryReportCriteria {
   providerIDs?: string[];
   facilityIDs: string[];
 }
+export interface DeniedClaimsByTimeResult {
+  rid: number;
+  postingDate: string;
+  counts: number;
+  average: number;
+}
+export interface DenialReasonAndRemarkCodesResult {
+  rid: number;
+  denialCodes: string;
+  counts: number;
+  type: string;
+}
+export interface DenialsByInsuranceTypeResult {
+  rid: number;
+  insuranceTypeID: number;
+  insuranceType: string;
+  counts: number;
+  amounts: number;
+}
 export interface MonthlySummaryReportData {
   id?: number;
   providersCount?: number;
@@ -5689,6 +5787,16 @@ export interface ExpectedPaymentsByDayResult {
   monthName: string;
   payments: number;
 }
+export interface AverageClaimsRevenueResult {
+  rid: number;
+  monthName: string;
+  payments: number;
+}
+export interface AverageChargeAmountResult {
+  rid: number;
+  monthName: string;
+  amounts: number;
+}
 export interface ARSByDataResult {
   rid: number;
   id: number;
@@ -6031,6 +6139,50 @@ export interface PatientAccountStatementsDetailCriteria {
   paymentsDateTo: string;
   chargesDateFrom: string;
   chargesDateTo: string;
+}
+export interface PatientInsuranceDataById {
+  patientInsuranceID: number;
+  patientID: number;
+  insuranceID: number;
+  insuranceAddressID: number;
+  payerResponsibilityID: number;
+  insuredRelationID: number;
+  mspTypeID: number;
+  policyStartDate: string;
+  policyEndDate: string;
+  insuranceNumber: number;
+  groupName: string;
+  groupNumber: number;
+  wcClaimNumber: number;
+  genderID: number;
+  firstName: string;
+  lastName: string;
+  middleName: string;
+  dob: string;
+  ssn: string;
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  zipCodeExtension: string;
+  homePhone: string;
+  officePhone: string;
+  officePhoneExtension: string;
+  cell: string;
+  email: string;
+  assignment: boolean;
+  copay: number;
+  active: boolean;
+  createdOn: string;
+  createdBy: string;
+  updatedOn: string;
+  updatedBy: string;
+  comment: string;
+  accidentDate: string;
+  accidentTypeID: number;
+  accidentStateID: number;
+  fax: string;
 }
 export interface PatientAccountStatementsDetailResult {
   patientID: number;

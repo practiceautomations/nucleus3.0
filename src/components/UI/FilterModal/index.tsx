@@ -100,6 +100,9 @@ export default function FilterModal({
           open={open}
           anchorEl={anchorEl}
           className={classNames('z-[100] w-full drop-shadow-lg', popperCls)}
+          onPointerEnterCapture={undefined} // Ensure this event handler is defined
+          onPointerLeaveCapture={undefined}
+          placeholder=""
         >
           <div className="mt-1 flex flex-col items-start justify-start rounded-lg border border-gray-200 bg-white">
             <div className="inline-flex w-full items-start justify-start overflow-x-auto">

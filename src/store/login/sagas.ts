@@ -77,6 +77,16 @@ function* loginRequestSaga({ payload }: LoginRequest) {
         error: message,
       })
     );
+
+    if (
+      ['Two Factor Authentication needed', 'NotMatch', 'TimeExpire'].includes(
+        message
+      )
+    ) {
+      removeNotification();
+      return;
+    }
+
     // handle with error type and prevent toast notification
     if (
       typeof message === 'string' &&

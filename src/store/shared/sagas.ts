@@ -4,7 +4,7 @@ import { all, call, put, takeLatest } from 'redux-saga/effects';
 import { v4 as uuidv4 } from 'uuid';
 
 // eslint-disable-next-line import/no-cycle
-import { httpClient } from '@/api/http-client';
+import { httpClient, httpClientDocument } from '@/api/http-client';
 import type { SingleSelectDropDownDataType } from '@/components/UI/SingleSelectDropDown';
 /* eslint-disable-next-line */
 import { handleApiError } from "@/utils/apiHelpers";
@@ -121,6 +121,9 @@ import type {
   AssignClaimToData,
   AssignClaimToRequestPayload,
   AutoPopulateClaimsForPatientsDataResult,
+  AverageChargeAmountResult,
+  AverageClaimsRevenueResult,
+  BatchDetailCriteria,
   BatchDocumentCriteria,
   BatchDocumentOutput,
   BatchDocumentPageCriteria,
@@ -176,12 +179,16 @@ import type {
   CreateCrossoverCriteria,
   CreateMultipleTasksResult,
   CreateTasksRequestData,
+  CrossoverChargesByPatientIDResult,
   DataRoleResult,
   DataRoleSearchCriteria,
   DeleteGuarantorResponse,
   DeleteICDResult,
   DeleteNotesResult,
   DeletePatientResponseDate,
+  DenialReasonAndRemarkCodesResult,
+  DenialsByInsuranceTypeResult,
+  DeniedClaimsByTimeResult,
   DocumentSearchCriteria,
   EDIImportDropdown,
   EDIImportLogCriteria,
@@ -198,6 +205,8 @@ import type {
   EOMReportViewDetailSearchCriteria,
   EOMViewDetailGridCriteria,
   EOMViewDetailGridResult,
+  ERACheckReportAPIResult,
+  ERACheckReportCriteria,
   ERAFullDetailResult,
   ExpectedPaymentsByDayResult,
   FacilitiesResultData,
@@ -230,6 +239,7 @@ import type {
   GetDenialReportCriteria,
   GetDenialReportResult,
   GetDocumentSearchAPIResult,
+  GetDocumentsProcessingErrorsResult,
   GetDuplicateWarningCriteria,
   GetEDIImportLogAPIResult,
   GetERADetailCharges,
@@ -303,6 +313,7 @@ import type {
   PatientInsuranceActieResult,
   PatientInsuranceActiveData,
   PatientInsuranceData,
+  PatientInsuranceDataById,
   PatientInsuranceRequestPayload,
   PatientInsuranceTabData,
   PatientLookupDropdown,
@@ -488,13 +499,13 @@ const getBatchNumberData = (searchCriteria: BatchNumberCriteria) =>
       `&clientID=${searchCriteria.clientID}`
   );
 const getBatchDocumentData = (searchCriteria: BatchDocumentCriteria) =>
-  httpClient.get<any>(
-    `/Repository/getChargeBatchDocument?chargeBatchID=${searchCriteria.chargeBatchID}` +
+  httpClientDocument.get<any>(
+    `/Dropdown/getChargeBatchDocumentDropdown?chargeBatchID=${searchCriteria.chargeBatchID}` +
       `&getInactive=${searchCriteria.getInactive}`
   );
 const getBatchDocumentPageData = (searchCriteria: BatchDocumentPageCriteria) =>
-  httpClient.get<any>(
-    `/Repository/getDocumentPage?documentID=${searchCriteria.documentID}`
+  httpClientDocument.get<any>(
+    `/Dropdown/getDocumentPageDropdown?documentID=${searchCriteria.documentID}`
   );
 const getSaveChargeData = (chargeData: SaveChargeRequestPayload) =>
   httpClient.post<any>(`/AddEditClaim/saveCharge`, chargeData);
@@ -520,10 +531,9 @@ const getICDSearchData = (searchCriteria: ICDSearchCriteria) =>
   );
 
 const getClaimDocumentData = (uploadedDocCriteria: UploadedDocumentCriteria) =>
-  httpClient.get<any>(
-    `Patient/getClaimDocuments?claimID=${uploadedDocCriteria.claimID}` +
-      `&groupID=${uploadedDocCriteria.groupID}` +
-      `&categoryID=${uploadedDocCriteria.categoryID}`
+  httpClientDocument.get<any>(
+    `Document/getSystemDocumentByAttachedID?attachedID=${uploadedDocCriteria.claimID}` +
+      `&typeID= 1`
   );
 const getScrubClaimData = (scrubClaim: ScrubClaimData[]) =>
   httpClient.post<any>(`/Claims/claimScrubing/`, scrubClaim);
@@ -1360,14 +1370,14 @@ export async function createNDCRule(ndcData: SaveCptNdcRequestPayload) {
 export async function uploadFile(formData: FormData) {
   try {
     store.dispatch(setAppSpinner(true));
-    const response: AxiosResponse<any> = await httpClient.post<any>(
-      `/Patient/saveClaimDocument/`,
+    const response: AxiosResponse<any> = await httpClientDocument.post<any>(
+      `/Document/uploadSystemDocument/`,
       formData
     );
     store.dispatch(
       addToastNotification({
         id: uuidv4(),
-        text: `${response.data.message}`,
+        text: `${response.data.data.message}`,
         toastType: ToastType.SUCCESS,
       })
     );
@@ -1389,12 +1399,12 @@ export async function uploadFile(formData: FormData) {
 export async function downloadDocumentBase64(documentID: number) {
   try {
     store.dispatch(setAppSpinner(true));
-    const response: AxiosResponse<TDownloadClaimDocumentType> =
-      await httpClient.get<TDownloadClaimDocumentType>(
-        `/Claims/downloadFilesBase64?documentID=${documentID}`
+    const response: AxiosResponse<{ data: TDownloadClaimDocumentType }> =
+      await httpClientDocument.get<{ data: TDownloadClaimDocumentType }>(
+        `/Document/downloadDocumentByID?id=${documentID}`
       );
     store.dispatch(setAppSpinner(false));
-    return response.data;
+    return response.data.data;
   } catch (e: any) {
     store.dispatch(setAppSpinner(false));
     const message = !e.code ? e.message : handleApiError(e);
@@ -1517,13 +1527,13 @@ export async function updateCharge(chargeData: SaveChargeRequestPayload) {
 }
 export async function deleteDocument(id: number | null | undefined) {
   try {
-    const response: AxiosResponse<any> = await httpClient.post<any>(
-      `/Claims/deleteDocument?documentID=${id}`
+    const response: AxiosResponse<any> = await httpClientDocument.post<any>(
+      `/Document/deleteDocumentByID?id=${id}`
     );
     store.dispatch(
       addToastNotification({
         id: uuidv4(),
-        text: `${response.data.message} ( ${id} )`,
+        text: `${response.data.data.message} ( ${id} )`,
         toastType: ToastType.SUCCESS,
       })
     );
@@ -1542,8 +1552,8 @@ export async function deleteDocument(id: number | null | undefined) {
 }
 export async function updateClaimDocumentEAttachment(data: any) {
   try {
-    const response: AxiosResponse<any> = await httpClient.post<any>(
-      `/Claims/changeDocumentEAttachment`,
+    const response: AxiosResponse<any> = await httpClientDocument.post<any>(
+      `/Document/updateDocumentEAttachement`,
       data
     );
     store.dispatch(
@@ -2367,11 +2377,11 @@ function* batchNumberRequestSaga({ payload }: BatchNumberRequest) {
 }
 function* batchDocumentRequestSaga({ payload }: BatchDocumentRequest) {
   try {
-    const response: AxiosResponse<BatchDocumentOutput[]> = yield call(
+    const response: AxiosResponse<{ data: BatchDocumentOutput[] }> = yield call(
       getBatchDocumentData,
       payload.batchDocument
     );
-    yield put(fetchBatchDocumentSuccess(response.data));
+    yield put(fetchBatchDocumentSuccess(response.data.data));
   } catch (e: any) {
     yield put(
       addToastNotification({
@@ -2424,11 +2434,9 @@ export async function renameSavedReport(data: any) {
 }
 function* batchDocumentPageRequestSaga({ payload }: BatchDocumentPageRequest) {
   try {
-    const response: AxiosResponse<BatchDocumentPageOutput[]> = yield call(
-      getBatchDocumentPageData,
-      payload.batchDocumentPage
-    );
-    yield put(fetchBatchDocumentPageSuccess(response.data));
+    const response: AxiosResponse<{ data: BatchDocumentPageOutput[] }> =
+      yield call(getBatchDocumentPageData, payload.batchDocumentPage);
+    yield put(fetchBatchDocumentPageSuccess(response.data.data));
   } catch (e: any) {
     yield put(
       addToastNotification({
@@ -2512,11 +2520,9 @@ function* icdSearchRequestSaga({ payload }: ICDSearchRequest) {
 }
 function* claimDocumentRequestSaga({ payload }: UploadedDocumentRequest) {
   try {
-    const response: AxiosResponse<UploadedDocumentOutput[]> = yield call(
-      getClaimDocumentData,
-      payload.uploadedDocument
-    );
-    yield put(fetchUploadedClaimDocumentSuccess(response.data));
+    const response: AxiosResponse<{ data: UploadedDocumentOutput[] }> =
+      yield call(getClaimDocumentData, payload.uploadedDocument);
+    yield put(fetchUploadedClaimDocumentSuccess(response.data.data));
   } catch (e: any) {
     yield put(
       addToastNotification({
@@ -2854,6 +2860,30 @@ export async function fetchEDIImportLogSearchData(data: EDIImportLogCriteria) {
     return null;
   }
 }
+
+export async function fetchERACheckReportSearchData(
+  data: ERACheckReportCriteria
+) {
+  const obj = JSON.parse(JSON.stringify(data));
+  const str = Object.keys(obj)
+    .map(function (key) {
+      return `${key}=${obj[key]}`;
+    })
+    .join('&');
+  store.dispatch(setAppSpinner(true));
+  try {
+    const response: AxiosResponse<ERACheckReportAPIResult[]> =
+      await httpClient.get<ERACheckReportAPIResult[]>(
+        `/Reports/get_era_data?${str}`
+      );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    return null;
+  }
+}
+
 export async function fetchViewReportLogData(id: number) {
   try {
     store.dispatch(setAppSpinner(true));
@@ -3563,12 +3593,12 @@ export async function fetchDocumentSearchData(data: DocumentSearchCriteria) {
     .join('&');
   store.dispatch(setAppSpinner(true));
   try {
-    const response: AxiosResponse<GetDocumentSearchAPIResult[]> =
-      await httpClient.get<GetDocumentSearchAPIResult[]>(
-        `Batch/getDocumentSearchData?${str}`
+    const response: AxiosResponse<{ data: GetDocumentSearchAPIResult[] }> =
+      await httpClientDocument.get<{ data: GetDocumentSearchAPIResult[] }>(
+        `Document/getSystemDocumentSearch?${str}`
       );
     store.dispatch(setAppSpinner(false));
-    return response.data;
+    return response.data.data;
   } catch (e: any) {
     store.dispatch(setAppSpinner(false));
     return null;
@@ -3603,12 +3633,12 @@ export async function fetchDocumentBatchGridData(data: BatchSearchCriteria) {
     .join('&');
   store.dispatch(setAppSpinner(true));
   try {
-    const response: AxiosResponse<GetBatchSearchAPIResult[]> =
-      await httpClient.get<GetBatchSearchAPIResult[]>(
-        `/Batch/getDocumentProfile?${str}`
+    const response: AxiosResponse<{ data: GetBatchSearchAPIResult[] }> =
+      await httpClientDocument.get<{ data: GetBatchSearchAPIResult[] }>(
+        `/DocumentBatch/getDocumentBatchSearch?${str}`
       );
     store.dispatch(setAppSpinner(false));
-    return response.data;
+    return response.data.data;
   } catch (e: any) {
     store.dispatch(setAppSpinner(false));
     return null;
@@ -3617,10 +3647,11 @@ export async function fetchDocumentBatchGridData(data: BatchSearchCriteria) {
 
 export async function fetchDocumentBatchData() {
   try {
-    const response: AxiosResponse<IdValuePair[]> = await httpClient.get<
-      IdValuePair[]
-    >(`/Batch/getDocumentBatchType`);
-    return response.data;
+    const response: AxiosResponse<{ data: IdValuePair[] }> =
+      await httpClientDocument.get<{ data: IdValuePair[] }>(
+        `/Dropdown/getDocumentTypeByBatchDropdown`
+      );
+    return response.data.data;
   } catch (e: any) {
     return null;
   }
@@ -3628,20 +3659,47 @@ export async function fetchDocumentBatchData() {
 
 export async function fetchBatchTypeData() {
   try {
-    const response: AxiosResponse<IdValuePair[]> = await httpClient.get<
-      IdValuePair[]
-    >(`/Repository/GetBatchTypes`);
-    return response.data;
+    const response: AxiosResponse<{ data: IdValuePair[] }> =
+      await httpClientDocument.get<{ data: IdValuePair[] }>(
+        `/Dropdown/getDocumentBatchTypeDropdown`
+      );
+    return response.data.data;
   } catch (e: any) {
     return null;
   }
 }
+
+export async function fetchLockboxTypeData() {
+  try {
+    const response: AxiosResponse<{ data: IdValuePair[] }> =
+      await httpClientDocument.get<{ data: IdValuePair[] }>(
+        `/Dropdown/getLockboxTypeDropdown`
+      );
+    return response.data.data;
+  } catch (e: any) {
+    return null;
+  }
+}
+
+export async function fetchAttachmentTypeDropdown() {
+  try {
+    const response: AxiosResponse<{ data: IdValuePair[] }> =
+      await httpClientDocument.get<{ data: IdValuePair[] }>(
+        `/Dropdown/getDocumentCategoryDropdown`
+      );
+    return response.data.data;
+  } catch (e: any) {
+    return null;
+  }
+}
+
 export async function fetchDocumentTags() {
   try {
-    const response: AxiosResponse<IdValuePair[]> = await httpClient.get<
-      IdValuePair[]
-    >(`/Claims/getDocumentTags`);
-    return response.data;
+    const response: AxiosResponse<{ data: IdValuePair[] }> =
+      await httpClientDocument.get<{ data: IdValuePair[] }>(
+        `/Dropdown/getDocumentTagsDropdown`
+      );
+    return response.data.data;
   } catch (e: any) {
     return null;
   }
@@ -3879,7 +3937,8 @@ export async function fetchPaymentReportSearchData(
   try {
     const response: AxiosResponse<GetPaymentReportsAPIResult> =
       await httpClient.get<GetPaymentReportsAPIResult>(
-        `/Reports/getPaymentReportdata?${str}`
+        `/Reports/getPaymentReportdata?${str}`,
+        { timeout: 0 }
       );
     store.dispatch(setAppSpinner(false));
     return response.data;
@@ -4039,9 +4098,10 @@ export async function createPaymentBatch(payload: FormData) {
 export async function createDocumentBatch(payload: FormData) {
   store.dispatch(setAppSpinner(true));
   try {
-    const response: AxiosResponse<any> = await httpClient.post<any>(
-      `/Batch/addDocumentBatchAndDocuments`,
-      payload
+    const response: AxiosResponse<any> = await httpClientDocument.post<any>(
+      `/DocumentBatch/addDocumentBatchAndDocument`,
+      payload,
+      { timeout: 300000 }
     );
     store.dispatch(
       addToastNotification({
@@ -4051,7 +4111,7 @@ export async function createDocumentBatch(payload: FormData) {
       })
     );
     store.dispatch(setAppSpinner(false));
-    return response.data;
+    return response.data.data;
   } catch (e: any) {
     store.dispatch(setAppSpinner(false));
     return null;
@@ -4105,8 +4165,8 @@ export async function updatePaymentBatch(payload: TPaymentBatchType) {
 export async function updateDocumentBatch(payload: TDocumentBatchType) {
   store.dispatch(setAppSpinner(true));
   try {
-    const response: AxiosResponse<any> = await httpClient.post<any>(
-      `/Batch/updateDocumentBatch`,
+    const response: AxiosResponse<any> = await httpClientDocument.post<any>(
+      `/DocumentBatch/updateDocumentBatch`,
       payload
     );
     store.dispatch(
@@ -4117,7 +4177,7 @@ export async function updateDocumentBatch(payload: TDocumentBatchType) {
       })
     );
     store.dispatch(setAppSpinner(false));
-    return response.data;
+    return response.data.data;
   } catch (e: any) {
     store.dispatch(setAppSpinner(false));
     return null;
@@ -4193,12 +4253,12 @@ export async function fetchERAProfileDataByID(id: number) {
 export async function fetchDocumentBatchByID(id: number) {
   try {
     store.dispatch(setAppSpinner(true));
-    const response: AxiosResponse<TDocumentBatchType> =
-      await httpClient.get<TDocumentBatchType>(
-        `/Batch/getDocumentBatchDataByID?documentBatchID=${id}`
+    const response: AxiosResponse<{ data: TDocumentBatchType }> =
+      await httpClientDocument.get<{ data: TDocumentBatchType }>(
+        `/DocumentBatch/getDocumentBatchDetailByID?id=${id}`
       );
     store.dispatch(setAppSpinner(false));
-    return response.data;
+    return response.data.data;
   } catch (e: any) {
     store.dispatch(setAppSpinner(false));
     const message = !e.code ? e.message : handleApiError(e);
@@ -4532,12 +4592,46 @@ export async function fetchPaymentBatchLedgersPostingByID(id: number) {
   }
 }
 
-export async function uploadedDocumentOCR(documentID: number) {
+export async function uploadedDocumentOCR(payload: number) {
+  store.dispatch(setAppSpinner(true));
   try {
-    httpClient.get<any>(`/Batch/scanDocument?documentID=${documentID}`, {
-      timeout: 0, // Set the timeout to 0 for this specific request (unlimited timeout)
-    });
+    const response: AxiosResponse<any> = await httpClientDocument.post<any>(
+      `/DocumentBatch/addDocumentBatchAndDocument`,
+      payload,
+      { timeout: 300000 } // Set to 5 minutes
+    );
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: 'Batch Successfully Created',
+        toastType: ToastType.SUCCESS,
+      })
+    );
+    store.dispatch(setAppSpinner(false));
+    return response.data.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    if (e.code === 'ECONNABORTED') {
+      console.error('Request timed out');
+    }
+    console.error('Error:', e.message);
     return null;
+  }
+}
+
+export async function fetchDocumentDataByID(data: BatchDetailCriteria) {
+  const obj = JSON.parse(JSON.stringify(data));
+  const str = Object.keys(obj)
+    .map(function (key) {
+      return `${key}=${obj[key]}`;
+    })
+    .join('&');
+  try {
+    const response: AxiosResponse<{ data: TBatchUploadedDocument[] }> =
+      await httpClientDocument.get<{ data: TBatchUploadedDocument[] }>(
+        `/Document/getSystemDocumentByAttachedID?${str}`
+      );
+    return response.data.data;
   } catch (e: any) {
     const message = !e.code ? e.message : handleApiError(e);
     store.dispatch(
@@ -4551,14 +4645,18 @@ export async function uploadedDocumentOCR(documentID: number) {
   }
 }
 
-export async function fetchDocumentDataByID(id: number, categoryID: string) {
+export async function fetchDocumentsProcessingErrorData(id: number) {
   try {
-    const response: AxiosResponse<TBatchUploadedDocument[]> =
-      await httpClient.get<TBatchUploadedDocument[]>(
-        `/Batch/getDocumentData?batchID=${id}&categoryID=${categoryID}`
-      );
-    return response.data;
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<{
+      data: GetDocumentsProcessingErrorsResult[];
+    }> = await httpClientDocument.get<{
+      data: GetDocumentsProcessingErrorsResult[];
+    }>(`/Document/getSystemDocumentErrorByAttachedID?attachedID=${id}`);
+    store.dispatch(setAppSpinner(false));
+    return response.data.data;
   } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
     const message = !e.code ? e.message : handleApiError(e);
     store.dispatch(
       addToastNotification({
@@ -4574,7 +4672,10 @@ export async function fetchDocumentDataByID(id: number, categoryID: string) {
 export async function uploadBatchDocument(payload: FormData) {
   store.dispatch(setAppSpinner(true));
   try {
-    await httpClient.post<any>(`/Batch/uploadBatchDocument`, payload);
+    await httpClientDocument.post<any>(
+      `/Document/uploadSystemDocument`,
+      payload
+    );
     store.dispatch(
       addToastNotification({
         id: uuidv4(),
@@ -4649,6 +4750,18 @@ export async function addUpdateGridLayout(
   }
 }
 
+export async function fetchDocumentBatchStatus() {
+  try {
+    const response: AxiosResponse<{ data: IdValuePair[] }> =
+      await httpClientDocument.get<{ data: IdValuePair[] }>(
+        `/Dropdown/getDocumentBatchStatusDropdown`
+      );
+    return response.data.data;
+  } catch (e: any) {
+    return null;
+  }
+}
+
 export async function fetchBatchStatus() {
   try {
     const response: AxiosResponse<IdValuePair[]> = await httpClient.get<
@@ -4714,6 +4827,61 @@ export async function getCrossoverClaimType(claimID: number) {
     return false;
   }
 }
+
+export async function getCrossoverPatientInsuranceType(
+  patientID: number,
+  insResponsibilityType: string
+) {
+  try {
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<any> = await httpClient.get<any>(
+      `/Patient/getCrossoverPatientInsuranceType?patientID=${patientID}` +
+        `&insResponsibilityType=${insResponsibilityType}`
+    );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    const message = !e.code ? e.message : handleApiError(e);
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: message || 'Error: unable to get claim crossover type.',
+        toastType: ToastType.ERROR,
+      })
+    );
+    return false;
+  }
+}
+
+export async function getSelectedCrossoverPatientInsurance(
+  patientID: number,
+  insResponsibilityType: string
+) {
+  try {
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<any> = await httpClient.get<any>(
+      `/Patient/getCrossoverPatientInsurance?patientID=${patientID}` +
+        `&insResponsibilityType=${
+          insResponsibilityType || insResponsibilityType
+        }`
+    );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    const message = !e.code ? e.message : handleApiError(e);
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: message || 'Error: unable to get claim crossover type.',
+        toastType: ToastType.ERROR,
+      })
+    );
+    return false;
+  }
+}
+
 export async function createCrossOverClaim(data: CreateCrossoverCriteria[]) {
   try {
     store.dispatch(setAppSpinner(true));
@@ -4757,6 +4925,34 @@ export async function getClaimDetailSummaryById(claimID: number) {
     return null;
   }
 }
+
+export async function getCrossoverChargesByPatientID(
+  patientID: number,
+  insResponsibilityType: string
+) {
+  try {
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<CrossoverChargesByPatientIDResult> =
+      await httpClient.get<CrossoverChargesByPatientIDResult>(
+        `/Patient/getCrossoverChargesByPatientID?patientIDs=${patientID}` +
+          `&insResponsibilityType=${insResponsibilityType}`
+      );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    const message = !e.code ? e.message : handleApiError(e);
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: message || 'Something went wrong',
+        toastType: ToastType.ERROR,
+      })
+    );
+    return null;
+  }
+}
+
 export async function fetchClaimDetailDataByID(claimID: number) {
   try {
     store.dispatch(setAppSpinner(true));
@@ -4906,8 +5102,8 @@ export async function uploadPatientDocs(patientData: FormData) {
   store.dispatch(setAppSpinner(true));
   try {
     const response: AxiosResponse<PatientUploadDocsResponse> =
-      await httpClient.post<PatientUploadDocsResponse>(
-        `/Patient/uploadPatientDocument`,
+      await httpClientDocument.post<PatientUploadDocsResponse>(
+        `/Document/uploadSystemDocument`,
         patientData
       );
     store.dispatch(setAppSpinner(false));
@@ -5287,7 +5483,7 @@ export async function getPaymentBatchDropdownData(
     return false;
   }
 }
-export async function getClaimTransferInsurance(claimID: any) {
+export async function getClaimTransferInsurance(claimID?: any) {
   try {
     store.dispatch(setAppSpinner(true));
     const response: AxiosResponse<SingleSelectDropDownDataType[]> =
@@ -5497,21 +5693,17 @@ export async function fetchClaimNotesData(
   }
 }
 export async function getPatientDocumentData(
-  patientID: number | null | undefined,
-  groupID: number | null,
-  categoryID: string | null
+  patientID: number | null | undefined
 ) {
   try {
     store.dispatch(setAppSpinner(true));
-    const response: AxiosResponse<PatientDocumnetData[]> = await httpClient.get<
-      PatientDocumnetData[]
-    >(
-      `Patient/getDocumentData?patientID=${patientID}` +
-        `&groupID=${groupID}` +
-        `&categoryID=${categoryID}`
-    );
+    const response: AxiosResponse<{ data: PatientDocumnetData[] }> =
+      await httpClientDocument.get<{ data: PatientDocumnetData[] }>(
+        `Document/getSystemDocumentByAttachedID?attachedID=${patientID}` +
+          `&typeID= 3`
+      );
     store.dispatch(setAppSpinner(false));
-    return response.data;
+    return response.data.data;
   } catch (e: any) {
     store.dispatch(setAppSpinner(false));
     return false;
@@ -7427,12 +7619,133 @@ export async function getARSByData(groupID: number) {
     return null;
   }
 }
+
+export async function getAverageClaimsRevenue(groupID: number) {
+  try {
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<AverageClaimsRevenueResult[]> =
+      await httpClient.get<AverageClaimsRevenueResult[]>(
+        `ARDashboard/getAverageClaimsRevenue?groupID=${groupID}`
+      );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    const message = !e.code ? e.message : handleApiError(e);
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: message || 'Something went wrong',
+        toastType: ToastType.ERROR,
+      })
+    );
+    return null;
+  }
+}
+
+export async function getAverageChargeAmount(groupID: number) {
+  try {
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<AverageChargeAmountResult[]> =
+      await httpClient.get<AverageChargeAmountResult[]>(
+        `ARDashboard/getAverageChargeAmount?groupID=${groupID}`
+      );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    const message = !e.code ? e.message : handleApiError(e);
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: message || 'Something went wrong',
+        toastType: ToastType.ERROR,
+      })
+    );
+    return null;
+  }
+}
+
+export async function getDeniedClaimsByTime(
+  groupID: number,
+  fromDate: string,
+  toDate: string
+) {
+  try {
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<DeniedClaimsByTimeResult[]> =
+      await httpClient.get<DeniedClaimsByTimeResult[]>(
+        `ARDashboard/getDeniedClaimsByTime?groupID=${groupID}&fromDate=${fromDate}&toDate=${toDate}`
+      );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    const message = !e.code ? e.message : handleApiError(e);
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: message || 'Something went wrong',
+        toastType: ToastType.ERROR,
+      })
+    );
+    return null;
+  }
+}
+export async function getDenialReasonAndRemarkCodes(
+  groupID: number,
+  fromDate: string,
+  toDate: string
+) {
+  try {
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<DenialReasonAndRemarkCodesResult[]> =
+      await httpClient.get<DenialReasonAndRemarkCodesResult[]>(
+        `ARDashboard/getDenialReasonAndRemarkCodes?groupID=${groupID}&fromDate=${fromDate}&toDate=${toDate}`
+      );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    const message = !e.code ? e.message : handleApiError(e);
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: message || 'Something went wrong',
+        toastType: ToastType.ERROR,
+      })
+    );
+    return null;
+  }
+}
 export async function getInsurancesWithTypes(groupID: number) {
   try {
     store.dispatch(setAppSpinner(true));
     const response: AxiosResponse<InsurancesWithTypesDropdownResult[]> =
       await httpClient.get<InsurancesWithTypesDropdownResult[]>(
         `Patient/getInsurancesWithTypes?groupID=${groupID}`
+      );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    const message = !e.code ? e.message : handleApiError(e);
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: message || 'Something went wrong',
+        toastType: ToastType.ERROR,
+      })
+    );
+    return null;
+  }
+}
+export async function getDenialsByInsuranceType(groupID?: number) {
+  try {
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<DenialsByInsuranceTypeResult[]> =
+      await httpClient.get<DenialsByInsuranceTypeResult[]>(
+        `ARDashboard/getDenialsByInsuranceType?groupID=${groupID}`
       );
     store.dispatch(setAppSpinner(false));
     return response.data;
@@ -8154,6 +8467,32 @@ export async function fetchActiveProvidersDropdownData(groupID: number) {
     return false;
   }
 }
+
+export async function fetchPatientInsuranceDataById(
+  patientInsuranceID: number | undefined
+) {
+  try {
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<PatientInsuranceDataById> =
+      await httpClient.get<PatientInsuranceDataById>(
+        `/Patient/getPatientInsuranceDataByID?patientInsuranceID=${patientInsuranceID}`
+      );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    const message = !e.code ? e.message : handleApiError(e);
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: message || 'Something went wrong',
+        toastType: ToastType.ERROR,
+      })
+    );
+    return false;
+  }
+}
+
 export async function getPatientAccountStatementsDetail(
   searchCriteria: PatientAccountStatementsDetailCriteria
 ) {
@@ -8184,33 +8523,33 @@ export async function getPatientAccountStatementsDetail(
     return false;
   }
 }
-// export async function getCPTSearchDataAsyc(
-//   searchValue: string,
-//   groupID: number
-// ) {
-//   try {
-//     store.dispatch(setAppSpinner(true));
-//     const response: AxiosResponse<CPTSearchOutput[]> = await httpClient.get<
-//       CPTSearchOutput[]
-//     >(
-//       `/Repository/getCPTCodes?searchValue=${searchValue}` +
-//         `&clientID=${groupID}`
-//     );
-//     store.dispatch(setAppSpinner(false));
-//     return response.data;
-//   } catch (e: any) {
-//     store.dispatch(setAppSpinner(false));
-//     const message = !e.code ? e.message : handleApiError(e);
-//     store.dispatch(
-//       addToastNotification({
-//         id: uuidv4(),
-//         text: message || 'Something went wrong',
-//         toastType: ToastType.ERROR,
-//       })
-//     );
-//     return false;
-//   }
-// }
+export async function getCPTSearchDataAsyc(
+  searchValue: string,
+  groupID: number
+) {
+  try {
+    store.dispatch(setAppSpinner(true));
+    const response: AxiosResponse<CPTSearchOutput[]> = await httpClient.get<
+      CPTSearchOutput[]
+    >(
+      `/Repository/getCPTCodes?searchValue=${searchValue}` +
+        `&clientID=${groupID}`
+    );
+    store.dispatch(setAppSpinner(false));
+    return response.data;
+  } catch (e: any) {
+    store.dispatch(setAppSpinner(false));
+    const message = !e.code ? e.message : handleApiError(e);
+    store.dispatch(
+      addToastNotification({
+        id: uuidv4(),
+        text: message || 'Something went wrong',
+        toastType: ToastType.ERROR,
+      })
+    );
+    return false;
+  }
+}
 function* sharedSaga() {
   yield all([
     takeLatest(ICD_SEARCH_REQUEST, icdSearchRequestSaga),

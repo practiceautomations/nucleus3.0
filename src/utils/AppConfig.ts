@@ -5,5 +5,5 @@ export const AppConfig = {
   locale: 'en',
   searchDelayInSeconds: 0,
   searchOnCharacterLength: 3,
-  appVersion: '2.1.35.1 - Kansas City',
+  appVersion: '2.1.35.2 - Kansas City',
 };

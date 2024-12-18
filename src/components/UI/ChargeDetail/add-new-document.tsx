@@ -1,14 +1,16 @@
-import { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
   addToastNotification,
   fetchUploadedClaimDocumentDataRequest,
 } from '@/store/shared/actions';
-import { uploadFile } from '@/store/shared/sagas';
-import { getLookupDropdownsDataSelector } from '@/store/shared/selectors';
-import type { UploadedDocumentCriteria } from '@/store/shared/types';
+import { fetchAttachmentTypeDropdown, uploadFile } from '@/store/shared/sagas';
+import type {
+  IdValuePair,
+  UploadedDocumentCriteria,
+} from '@/store/shared/types';
 import { ToastType } from '@/store/shared/types';
 
 import Button, { ButtonType } from '../Button';
@@ -53,7 +55,10 @@ export function AddNewDocument({
   });
   const [selectedattachmentType, setSelectedAttachmentType] =
     useState<SingleSelectDropDownDataType>();
-  const lookupsData = useSelector(getLookupDropdownsDataSelector);
+  // const lookupsData = useSelector(getLookupDropdownsDataSelector);
+  const [attachmentTypeDropdown, setAttachmentTypeDropdown] = useState<
+    IdValuePair[]
+  >([]);
   const [selectedFileName, setSelectedFileName] = useState<string>();
   const dispatch = useDispatch();
   const [selectedFile, setSelectedFile] = useState<File>();
@@ -80,13 +85,15 @@ export function AddNewDocument({
 
     if (selectedFile && claimID && selectedattachmentType && groupID) {
       const file: File = selectedFile;
+      const documentTypeID = 1;
       const formData: FormData = new FormData();
       formData.append('file', file);
-      formData.append('claimID', claimID.toString());
+      formData.append('attachedID', claimID.toString());
       formData.append('patientID', patientID ? patientID.toString() : '');
-      formData.append('clientID', groupID.toString());
+      formData.append('groupID', groupID.toString());
       formData.append('practiceID', practiceID ? practiceID.toString() : '');
       formData.append('categoryID', selectedattachmentType.id.toString());
+      formData.append('documentTypeID', documentTypeID.toString());
       formData.append('eAttachment', '');
       const res = await uploadFile(formData);
       if (res) {
@@ -97,6 +104,18 @@ export function AddNewDocument({
       }
     }
   };
+
+  const getAttachmentTypeDropdown = async () => {
+    const res = await fetchAttachmentTypeDropdown();
+    if (res) {
+      setAttachmentTypeDropdown(res);
+    }
+  };
+
+  useEffect(() => {
+    getAttachmentTypeDropdown();
+  }, []);
+
   return (
     <div className="w-[913px] ">
       <div className="flex items-start justify-between gap-4 p-[14px]  ">
@@ -136,11 +155,7 @@ export function AddNewDocument({
                       placeholder="Attachment Type"
                       showSearchBar={true}
                       disabled={false}
-                      data={
-                        lookupsData?.documentAttachmentType
-                          ? (lookupsData?.documentAttachmentType as SingleSelectDropDownDataType[])
-                          : []
-                      }
+                      data={attachmentTypeDropdown}
                       selectedValue={selectedattachmentType}
                       onSelect={(value) => {
                         setSelectedAttachmentType(value);

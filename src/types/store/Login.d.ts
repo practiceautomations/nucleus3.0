@@ -10,6 +10,7 @@ export type User = {
   menuData: MenuData;
   userTimeZone: string;
   userTimeZoneCode: string;
+  tfaEnable: boolean;
 };
 
 export type UserWithToken = User & {

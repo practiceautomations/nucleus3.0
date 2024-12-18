@@ -119,6 +119,9 @@ export default function ButtonSelectDropdownForExport({
           open={open}
           anchorEl={anchorEl}
           className="z-[100]"
+          onPointerEnterCapture={undefined} // Ensure this event handler is defined
+          onPointerLeaveCapture={undefined}
+          placeholder=""
         >
           <div className="mt-1 flex w-[250px] flex-col items-start justify-start rounded-lg border border-gray-200 bg-white">
             <div className="z-10 w-full rounded-md bg-white ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">

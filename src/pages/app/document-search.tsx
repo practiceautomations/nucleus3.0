@@ -80,13 +80,13 @@ const DocumentSearch = () => {
     type: StatusModalType.WARNING,
   });
   const defaultSearchCriteria: DocumentSearchCriteria = {
-    groupID: 0,
+    groupIDS: 0,
     pageNumber: 1,
     pageSize: globalPaginationConfig.activePageSize,
     batchTypeID: undefined,
     batchID: undefined,
-    statusID: undefined,
-    text: '',
+    batchStatusID: undefined,
+    documentText: '',
     documentTags: undefined,
     sortColumn: '',
     sortOrder: '',
@@ -160,9 +160,11 @@ const DocumentSearch = () => {
   const viewDocument = async (id: number) => {
     let base64String = '';
     const resDownloadDocument = await downloadDocumentBase64(id);
-    if (resDownloadDocument && resDownloadDocument.data) {
+    if (resDownloadDocument && resDownloadDocument.documentBase64) {
       // check the file extension
-      const extension = resDownloadDocument.fileType.substring(1).toLowerCase();
+      const extension = resDownloadDocument.documentExtension
+        .substring(1)
+        .toLowerCase();
       // set the content type based on the file extension
       let contentType = '';
       if (extension === 'png') {
@@ -173,7 +175,7 @@ const DocumentSearch = () => {
         contentType = 'application/pdf';
       }
       // concatenate the content type and base64 string
-      base64String = `data:${contentType};base64,${resDownloadDocument.data}`;
+      base64String = `data:${contentType};base64,${resDownloadDocument.documentBase64}`;
     }
     // view in open new window
     if (base64String) {
@@ -455,7 +457,7 @@ const DocumentSearch = () => {
     if (selectedWorkedGroup?.groupsData[0]?.id)
       setSearchCriteriaFields({
         ...searchCriteria,
-        groupID: selectedWorkedGroup?.groupsData[0]?.id || 0,
+        groupIDS: selectedWorkedGroup?.groupsData[0]?.id || 0,
       });
   }, [selectedWorkedGroup]);
 
@@ -579,20 +581,21 @@ const DocumentSearch = () => {
                                   data={batchStatusDropdown}
                                   selectedValue={
                                     batchStatusDropdown.filter(
-                                      (f) => f.id === searchCriteria?.statusID
+                                      (f) =>
+                                        f.id === searchCriteria?.batchStatusID
                                     )[0]
                                   }
                                   onSelect={(value) => {
                                     setSearchCriteriaFields({
                                       ...searchCriteria,
-                                      statusID: value.id,
+                                      batchStatusID: value.id,
                                     });
                                   }}
                                   isOptional={true}
                                   onDeselectValue={() => {
                                     setSearchCriteriaFields({
                                       ...searchCriteria,
-                                      statusID: undefined,
+                                      batchStatusID: undefined,
                                     });
                                   }}
                                 />
@@ -611,11 +614,11 @@ const DocumentSearch = () => {
                               <div className="w-full">
                                 <InputField
                                   placeholder="-"
-                                  value={searchCriteria.text}
+                                  value={searchCriteria.documentText}
                                   onChange={(e) => {
                                     setSearchCriteriaFields({
                                       ...searchCriteria,
-                                      text: e.target.value,
+                                      documentText: e.target.value,
                                     });
                                   }}
                                 />
@@ -682,13 +685,13 @@ const DocumentSearch = () => {
                                     }
                                     selectedValue={
                                       groupDropdown.filter(
-                                        (f) => f.id === searchCriteria?.groupID
+                                        (f) => f.id === searchCriteria?.groupIDS
                                       )[0]
                                     }
                                     onSelect={(value) => {
                                       setSearchCriteriaFields({
                                         ...searchCriteria,
-                                        groupID: value.id,
+                                        groupIDS: value.id,
                                       });
                                     }}
                                   />

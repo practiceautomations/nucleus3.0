@@ -480,8 +480,9 @@ export default function PaymentPosting({
       });
     }
   };
-  const [isInsuranceBalanceNeg, setInsuranceBalanceNeg] = useState(false);
-  const [isPatientBalanceNeg, setPatientBalanceNeg] = useState(false);
+  const [isInsuranceBalanceNeg, setInsuranceBalanceNeg] = useState(0);
+  const [isPatientBalanceNeg, setPatientBalanceNeg] = useState(0);
+  const [insTransferAmount, setInsTransferAmount] = useState(0);
   const expandedRowContent = (expandedRowParams: GridRowParams) => {
     const newData: SaveInsurancePaymentCriteria = {
       claimID,
@@ -531,6 +532,7 @@ export default function PaymentPosting({
     const refundDataObj = refundData.find(
       (f) => f.id === Number(expandedRowParams.id)
     );
+
     return (
       <div className="bg-gray-300 p-4">
         {refundDataObj && (
@@ -559,6 +561,18 @@ export default function PaymentPosting({
             selectedRefundTypeId={paymentDetailJson?.selectedRefundType?.id}
             reRenderPatientInsuranceBalance={JSON.stringify(chargesJsonData)}
             onChange={(data: SaveInsurancePaymentCriteria) => {
+              // debugger;
+              const tPatientAmount = data.responsibility.length
+                ? data.responsibility.reduce(
+                    (total, current) => total + current.patientResponsibility,
+                    0
+                  )
+                : 0;
+              const transferAmount =
+                tPatientAmount + (data.secondaryInsuranceAmount || 0);
+              if (transferAmount) {
+                setInsTransferAmount(transferAmount);
+              }
               setPaymentData((prevData) => {
                 if (prevData.some((item) => item.chargeID === data.chargeID)) {
                   return prevData.map((item) => {
@@ -1120,15 +1134,15 @@ export default function PaymentPosting({
       });
       return;
     }
-    if (isInsuranceBalanceNeg && paymentFrom === 'insurance') {
-      // setChangeModalState({
-      //   ...changeModalState,
-      //   open: true,
-      //   heading: 'Error',
-      //   statusModalType: StatusModalType.ERROR,
-      //   description: 'Transfer Amount should be less than Insurance Balance.',
-      // });
-      // return;
+    if (isInsuranceBalanceNeg < insTransferAmount) {
+      setChangeModalState({
+        ...changeModalState,
+        open: true,
+        heading: 'Error',
+        statusModalType: StatusModalType.ERROR,
+        description: 'Transfer Amount should be less than Insurance Balance.',
+      });
+      return;
     }
     if (isPatientBalanceNeg && paymentFrom === 'patient') {
       // setChangeModalState({
@@ -1590,7 +1604,6 @@ export default function PaymentPosting({
                       : lookupsData?.method) || []
                   }
                   selectedValue={
-                    paymentFrom === 'patient' &&
                     paymentDetailJson &&
                     paymentDetailJson.selectedPatientPosting &&
                     paymentDetailJson.selectedPatientPosting.id === 1
@@ -1624,6 +1637,12 @@ export default function PaymentPosting({
                         handlePaymentJsonChange('depositDate', e.depositDate);
                         handlePaymentJsonChange('paymentNumber', e.checkNumber);
                         handlePaymentJsonChange('paymentDate', e.checkDate);
+                        handlePaymentJsonChange(
+                          'paymentType',
+                          lookupsData?.method.filter(
+                            (m) => m.id === e.paymentTypeID
+                          )
+                        );
                         handlePaymentJsonChange('paymentbatch', e);
                       }
                     }}

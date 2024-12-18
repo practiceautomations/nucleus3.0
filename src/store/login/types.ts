@@ -17,6 +17,7 @@ export interface LoginState {
   email: string;
   loginAttempts: number;
   menuItems: MenuItemType[];
+  password: string;
   // selectedMenuItem: MenuItemType | null;
 }
 
@@ -43,6 +44,7 @@ export interface LogoutRequestPayload {
 export interface LoginRequestPayload {
   email: string;
   password: string;
+  passcode?: string;
 }
 
 export interface LoginFailurePayload {

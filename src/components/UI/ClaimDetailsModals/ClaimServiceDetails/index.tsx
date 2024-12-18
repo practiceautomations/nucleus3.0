@@ -9,6 +9,7 @@ import Icon from '@/components/Icon';
 import MedicalCase from '@/components/MedicalCases';
 // eslint-disable-next-line import/no-cycle
 import PatientDetailModal from '@/components/PatientDetailModal';
+import PatientInsurance from '@/components/PatientInsurance';
 import Modal from '@/components/UI/Modal';
 import { getselectdWorkGroupsIDsSelector } from '@/store/chrome/selectors';
 import type { ProvidersData } from '@/store/chrome/types';
@@ -25,7 +26,11 @@ import {
   fetchReferringProviderDataRequest,
   getLookupDropdownsRequest,
 } from '@/store/shared/actions';
-import { getMedicalCaseForClaim } from '@/store/shared/sagas';
+import {
+  fetchPatientDataByID,
+  fetchPatientInsuranceDataById,
+  getMedicalCaseForClaim,
+} from '@/store/shared/sagas';
 import {
   getClaimPatientInsuranceDataSelector,
   getFacilityDataSelector,
@@ -42,7 +47,9 @@ import type {
   ClaimDataByClaimIDResult,
   FacilityData,
   GetLinkableClaimsForMedicalCaseCriteria,
+  GetPatientRequestData,
   PatientInsuranceData,
+  PatientInsuranceDataById,
   PatientSearchCriteria,
   PatientSearchOutput,
   ReferringProviderData,
@@ -126,6 +133,7 @@ export default function ClaimServiceDetails({
   // Bill Claim To
   const [primaryInsuranceData, setPrimaryInsuranceData] =
     useState<PatientInsuranceData[]>();
+  console.log('primaryInsuranceData : ', primaryInsuranceData);
   const [selectedSubscriberRelation, setSelectedSubscriberRelation] =
     useState<string>();
   const [isClaimEditMode, setIsClaimEditMode] = useState(false);
@@ -141,6 +149,7 @@ export default function ClaimServiceDetails({
     providers: [],
   });
   const [jsonData, setJsonData] = useState<ClaimDataByClaimIDResult>(data);
+  console.log('jsonData : ', jsonData);
   const [selectedRefProvider, setselectedRefProvider] =
     useState<SingleSelectDropDownDataType>();
 
@@ -290,6 +299,11 @@ export default function ClaimServiceDetails({
     }
   }, [practicesData]);
 
+  const [selectedPatientAllData, setSelectedPatientAllData] =
+    useState<GetPatientRequestData>();
+
+  console.log('SelectedPatientAllData :', selectedPatientAllData);
+
   useOnceEffect(() => {
     if (selectedPatient?.id) {
       dispatch(fetchClaimPatientInsranceDataRequest({ claimID: data.claimID }));
@@ -360,6 +374,7 @@ export default function ClaimServiceDetails({
           patientInsurance.insuranceResponsibility === 'P' ||
           patientInsurance.insuranceResponsibility === 'S'
       );
+      console.log('insuranceDataFiltered : ', insuranceDataFiltered);
       setPrimaryInsuranceData(insuranceDataFiltered);
 
       if (insuranceDataFiltered.length && insuranceDataFiltered[0]) {
@@ -510,6 +525,52 @@ export default function ClaimServiceDetails({
     open: false,
     id: null,
   });
+
+  const [selectedPatientInsuranceData, setSelectedPatientInsuranceData] =
+    useState<PatientInsuranceDataById>();
+  console.log('selectedPatientInsuranceData : ', selectedPatientInsuranceData);
+  const [isInsuranceModalOpen, setIsInsuranceModalOpen] = useState(false);
+  const [isViewInsuranceMode, setIsViewInsuranceMode] = useState(false);
+  const [insuranceSubscriberData, setInsuranceSubscriberData] =
+    useState<GetPatientRequestData | null>();
+
+  const getRegisterPatientDataByID = async (id: number) => {
+    console.log('id of patient : ', id);
+    const ress = await fetchPatientDataByID(id);
+    console.log('Patient all data : ', ress);
+    if (ress) {
+      setSelectedPatientAllData(ress);
+    } else {
+      console.log('Error fetching patient all data.');
+    }
+  };
+
+  const showPatientModal = async () => {
+    console.log('Primary Insurance : ', jsonData);
+    // console.log('pencil clicked in claim bill to');
+    // console.log('selected claim id : ', jsonData?.patientInsuranceID);
+    const res = await fetchPatientInsuranceDataById(
+      jsonData?.patientInsuranceID
+    );
+    if (res) {
+      console.log('insurance data : ', res);
+      setSelectedPatientInsuranceData(res);
+    } else {
+      console.log('Api error.');
+    }
+
+    // getting all users data
+    if (selectedPatient && typeof selectedPatient.id === 'number') {
+      getRegisterPatientDataByID(selectedPatient.id);
+    } else {
+      // Handle the case where selectedPatient is undefined or id is not a number
+      console.log('Invalid patient ID.');
+    }
+    console.log('Pencil clicked...');
+    setIsInsuranceModalOpen(true);
+    setIsViewInsuranceMode(false);
+  };
+
   return (
     <div className="w-full bg-gray-100">
       <div className="flex flex-col gap-[72px] px-[24px] pt-[40px]">
@@ -727,12 +788,117 @@ export default function ClaimServiceDetails({
                     </div>
                   </div>
                   <Button
-                    disabled={!isClaimEditMode}
+                    onClick={showPatientModal}
+                    disabled={
+                      !isClaimEditMode ||
+                      !primaryInsuranceData?.find(
+                        (f) => f.id === jsonData.patientInsuranceID
+                      )
+                    }
                     buttonType={ButtonType.secondary}
                     cls={`h-[38px] w-[38px] justify-center !px-2 !py-1 text-sm inline-flex `}
                   >
                     <Icon name={'pencil'} size={18} color={IconColors.GRAY} />
                   </Button>
+
+                  {/* patient insurance */}
+
+                  <Modal
+                    open={isInsuranceModalOpen}
+                    onClose={() => {
+                      // setIsInsuranceModalOpen(false);
+                      // setIsViewInsuranceMode(false);
+                    }}
+                    modalContentClassName="h-[calc(100%-80px)] w-[calc(100%-220px)] relative rounded-lg bg-white shadow-xl transition-all sm:my-8"
+                  >
+                    <PatientInsurance
+                      onClose={() => {
+                        setIsInsuranceModalOpen(false);
+                        // setIsViewInsuranceMode(false);
+                        // getPatientInsuranceData();
+                      }}
+                      selectedPatientID={selectedPatient?.id || null}
+                      groupID={jsonData?.groupID}
+                      selectedPatientInsuranceData={
+                        selectedPatientInsuranceData
+                          ? {
+                              id: selectedPatientInsuranceData.patientInsuranceID,
+                              patientID: selectedPatientInsuranceData.patientID,
+                              clientID: jsonData?.groupID,
+                              insuranceID:
+                                selectedPatientInsuranceData.insuranceID,
+                              insuranceName: '',
+                              payerResponsibility: '',
+                              insuranceNumber:
+                                selectedPatientInsuranceData.insuranceNumber?.toString(),
+                              groupNumber:
+                                selectedPatientInsuranceData.groupNumber?.toString(),
+                              groupName: selectedPatientInsuranceData.groupName,
+                              wcClaimNumber:
+                                selectedPatientInsuranceData.wcClaimNumber?.toString(),
+                              policyStartDate:
+                                selectedPatientInsuranceData.policyStartDate,
+                              policyEndDate:
+                                selectedPatientInsuranceData.policyEndDate,
+                              firstName: selectedPatientInsuranceData.firstName,
+                              middleName:
+                                selectedPatientInsuranceData.middleName,
+                              copay: selectedPatientInsuranceData.copay,
+                              assignment:
+                                selectedPatientInsuranceData.assignment,
+                              genderID: selectedPatientInsuranceData.genderID,
+                              homePhone: selectedPatientInsuranceData.homePhone,
+                              officePhone:
+                                selectedPatientInsuranceData.officePhone,
+                              officePhoneExtension:
+                                selectedPatientInsuranceData.officePhoneExtension,
+                              email: selectedPatientInsuranceData.email,
+                              cell: selectedPatientInsuranceData.cell,
+                              lastName: selectedPatientInsuranceData.lastName,
+                              address1: selectedPatientInsuranceData.address1,
+                              address2: selectedPatientInsuranceData.address2,
+                              city: selectedPatientInsuranceData.city,
+                              state: selectedPatientInsuranceData.state,
+                              zipCode: selectedPatientInsuranceData.zipCode,
+                              zipCodeExtension:
+                                selectedPatientInsuranceData.zipCodeExtension,
+                              phone: selectedPatientInsuranceData.homePhone,
+                              dob: selectedPatientInsuranceData.dob,
+                              relation:
+                                selectedPatientInsuranceData.insuredRelationID?.toString(),
+                              payerResponsibilityID:
+                                selectedPatientInsuranceData.payerResponsibilityID,
+                              relationID:
+                                selectedPatientInsuranceData.insuredRelationID,
+                              active: selectedPatientInsuranceData.active,
+                              eligibilityRequestID: -1,
+                              checkEligibilityDate: '',
+                              comment: selectedPatientInsuranceData.comment,
+                              mspTypeID: selectedPatientInsuranceData.mspTypeID,
+                              accidentDate:
+                                selectedPatientInsuranceData.accidentDate,
+                              accidentTypeID:
+                                selectedPatientInsuranceData.accidentTypeID,
+                              accidentStateID:
+                                selectedPatientInsuranceData.accidentStateID,
+                              fax: selectedPatientInsuranceData.fax,
+                            }
+                          : null
+                      }
+                      onSelectSelf={(value: boolean) => {
+                        if (value === true) {
+                          setInsuranceSubscriberData(selectedPatientAllData);
+                        } else {
+                          setInsuranceSubscriberData(undefined);
+                        }
+                      }}
+                      insuranceSubscriberData={insuranceSubscriberData || null}
+                      isViewMode={isViewInsuranceMode}
+                    />
+                  </Modal>
+
+                  {/* end */}
+
                   <div className={`flex pl-[24px]`}>
                     <div className={`gap-1 w-[280px]`}>
                       <div className={`w-full items-start self-stretch`}>

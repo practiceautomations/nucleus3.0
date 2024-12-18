@@ -292,6 +292,13 @@ export function ViewChargeDetails({
       disableReorder: true,
     },
     {
+      field: 'comments',
+      headerName: 'Comments',
+      flex: 1,
+      minWidth: 150,
+      disableReorder: true,
+    },
+    {
       field: 'actions',
       headerName: 'Actions',
       headerClassName: '!bg-cyan-100 !text-center',

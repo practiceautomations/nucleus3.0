@@ -62,6 +62,10 @@ const Login = () => {
   }
 
   useEffect(() => {
+    if (userError === 'Two Factor Authentication needed') {
+      router.push('/tfa-verification');
+    }
+
     if (userError === 'Maximum limits reached.') {
       setStatusModalInfo({
         show: true,

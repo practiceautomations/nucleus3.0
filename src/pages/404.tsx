@@ -1,11 +1,25 @@
 import { useRouter } from 'next/router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 
 import Icon from '@/components/Icon';
 import Button, { ButtonType } from '@/components/UI/Button';
 
+import { getUserSelector } from '../store/login/selectors';
+
 const NotFound = () => {
   const router = useRouter();
+  const user = useSelector(getUserSelector);
+  const [backto, setBackto] = useState<string>();
+
+  useEffect(() => {
+    if (user?.token) {
+      setBackto('Home');
+    } else {
+      setBackto('Login');
+    }
+  });
+
   return (
     <div className="flex h-full w-full items-center justify-center">
       <div className="inline-flex h-[326px] w-[842px] items-center justify-center">
@@ -19,9 +33,9 @@ const NotFound = () => {
                 Page not found
               </div>
               <div className="w-[516px] text-sm font-normal text-gray-500">
-                {
-                  "Sorry, the page you are looking for doesn't seem to exist or an error occurred. Please try searching for the page again, or return to the Homepage."
-                }
+                {`Sorry, the page you are looking for doesn't seem to exist or an
+                error occurred. Please try searching for the page again, or
+                return to the ${backto}page.`}
               </div>
             </div>
             <Button
@@ -31,7 +45,7 @@ const NotFound = () => {
                 router.push('/');
               }}
             >
-              <p className="text-sm">Back to Home</p>
+              <p className="text-sm">Back to {backto}</p>
             </Button>
           </div>
         </div>

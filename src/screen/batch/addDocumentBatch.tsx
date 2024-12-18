@@ -17,21 +17,27 @@ import { getUserSelector } from '@/store/login/selectors';
 import {
   addToastNotification,
   fetchAssignClaimToDataRequest,
+  fetchPracticeDataRequest,
 } from '@/store/shared/actions';
 import {
   createDocumentBatch,
   deleteDocument,
   downloadDocumentBase64,
-  fetchBatchStatus,
   fetchBatchTypeData,
   fetchDocumentBatchByID,
-  fetchDocumentDataByID,
+  fetchDocumentBatchStatus,
+  // fetchDocumentDataByID,
+  fetchLockboxTypeData,
   updateDocumentBatch,
   uploadBatchDocument,
 } from '@/store/shared/sagas';
-import { getAssignClaimToDataSelector } from '@/store/shared/selectors';
+import {
+  getAssignClaimToDataSelector,
+  getPracticeDataSelector,
+} from '@/store/shared/selectors';
 import type {
   IdValuePair,
+  PracticeData,
   TBatchUploadedDocument,
   TDocumentBatchType,
 } from '@/store/shared/types';
@@ -56,14 +62,20 @@ export default function AddDocumentBatch({
 }: TProps) {
   const dispatch = useDispatch();
   const [batchTypeDropdown, setBatchTypeDropdown] = useState<IdValuePair[]>([]);
+  const [lockboxTypeDropdown, setLockboxTypeDropdown] = useState<IdValuePair[]>(
+    []
+  );
   const selectedWorkedGroup = useSelector(getselectdWorkGroupsIDsSelector);
   const assignClaimToData = useSelector(getAssignClaimToDataSelector);
+  const practicesData = useSelector(getPracticeDataSelector);
   const [claimdata, setClaimData] = useState<SingleSelectDropDownDataType[]>(
     []
   );
+  const [practiceDropdown, setPracticeDropdown] = useState<PracticeData[]>([]);
   const user = useSelector(getUserSelector);
   const batchcategoryID = useRef('7');
   const [isChangedJson, setIsChangedJson] = useState(false);
+  const [disableBatchType, setDisableBatchType] = useState(false);
   const [batchStatusDropdown, setBatchStatusDropdown] = useState<
     SingleSelectDropDownDataType[]
   >([]);
@@ -72,23 +84,33 @@ export default function AddDocumentBatch({
   const [selectedFilesList, setSelectedFileslist] = useState<
     TBatchUploadedDocument[]
   >([]);
+
   const [documentToDelete, setDocumentToDelete] =
     useState<TBatchUploadedDocument>();
 
+  const [isZip, setIsZip] = useState(false);
+  const [disableUpload, setDisableUpload] = useState(false);
+
   const getBatchStatus = async () => {
-    const res = await fetchBatchStatus();
+    const res = await fetchDocumentBatchStatus();
     if (res) {
       setBatchStatusDropdown(res);
     }
   };
   useEffect(() => {
+    if (practicesData?.length) {
+      setPracticeDropdown(practicesData);
+    }
+  }, [practicesData]);
+  useEffect(() => {
     getBatchStatus();
   }, []);
 
   const [addUpdateJson, setAddUpdateJson] = useState<TDocumentBatchType>({
-    documentBatchID: undefined,
+    id: undefined,
     description: '',
     groupID: undefined,
+    practiceID: undefined,
     group: '',
     groupEIN: '',
     postDate: '',
@@ -99,6 +121,7 @@ export default function AddDocumentBatch({
     batchStatus: '',
     batchStatusColor: '',
     batchTypeID: undefined,
+    lockboxTypeID: undefined,
     batchType: '',
     batchStatusTime: '',
   });
@@ -132,6 +155,23 @@ export default function AddDocumentBatch({
   }, [addUpdateJson.groupID]);
 
   useEffect(() => {
+    if (selectedWorkedGroup?.workGroupId) {
+      setPracticeDropdown(selectedWorkedGroup.practicesData);
+    }
+    if (
+      selectedWorkedGroup &&
+      selectedWorkedGroup?.groupsData?.length > 0 &&
+      selectedWorkedGroup?.groupsData[0]?.id
+    ) {
+      dispatch(
+        fetchPracticeDataRequest({
+          groupID: selectedWorkedGroup?.groupsData[0]?.id,
+        })
+      );
+    }
+  }, [selectedWorkedGroup]);
+
+  useEffect(() => {
     if (assignClaimToData) {
       setClaimData(assignClaimToData);
     }
@@ -142,12 +182,22 @@ export default function AddDocumentBatch({
     setIsChangedJson(true);
   };
 
+  useEffect(() => {
+    if (addUpdateJson.batchTypeID === 21) {
+      setIsZip(true);
+    } else {
+      setIsZip(false);
+    }
+  }, [addUpdateJson.batchTypeID]);
+
   const onCreate = async () => {
     if (
       !addUpdateJson.groupID ||
+      !addUpdateJson.practiceID ||
       !addUpdateJson.description ||
       !addUpdateJson.batchStatusID ||
-      !addUpdateJson.batchTypeID
+      !addUpdateJson.batchTypeID ||
+      (addUpdateJson.batchTypeID === 21 && !addUpdateJson.lockboxTypeID)
     ) {
       setStatusModalInfo({
         ...statusModalInfo,
@@ -159,13 +209,26 @@ export default function AddDocumentBatch({
       return;
     }
 
+    if (addUpdateJson.batchTypeID === 21 && selectedFilesList?.length > 1) {
+      setStatusModalInfo({
+        ...statusModalInfo,
+        show: true,
+        heading: 'Alert',
+        text: 'You can upload only one Zip file when the Batch Type is Lockbox. Please remove extra files and try again.',
+        type: StatusModalType.WARNING,
+      });
+      return;
+    }
+
     const obj: TDocumentBatchType = {
       ...addUpdateJson,
       groupID: addUpdateJson.groupID,
+      practiceID: addUpdateJson.practiceID,
       followupAssignee: addUpdateJson.followupAssignee,
       description: addUpdateJson.description,
       batchStatusID: addUpdateJson.batchStatusID,
       batchTypeID: addUpdateJson.batchTypeID,
+      lockboxTypeID: addUpdateJson.lockboxTypeID,
     };
 
     let res: any = '';
@@ -182,7 +245,6 @@ export default function AddDocumentBatch({
     else {
       res = await updateDocumentBatch(obj);
     }
-
     if (res) {
       onClose(true);
     } else {
@@ -194,6 +256,26 @@ export default function AddDocumentBatch({
         type: StatusModalType.ERROR,
       });
     }
+    // if (
+    //   addUpdateJson.batchTypeID === 21 &&
+    //   (selectedFilesList?.length || 0) > 1
+    // ) {
+    //   setStatusModalInfo({
+    //     ...statusModalInfo,
+    //     show: true,
+    //     heading: 'Error',
+    //     text: 'You can upload only one Zip file when the Batch Type is Lockbox. Please remove extra files and try again.',
+    //     type: StatusModalType.ERROR,
+    //   });
+    // } else {
+    //   setStatusModalInfo({
+    //     ...statusModalInfo,
+    //     show: true,
+    //     heading: 'Error',
+    //     text: 'You can upload only one Zip file when the Batch Type is Lockbox. Please remove extra files and try again.',
+    //     type: StatusModalType.ERROR,
+    //   });
+    // }
   };
 
   const onPressClose = () => {
@@ -216,15 +298,18 @@ export default function AddDocumentBatch({
   const getBatchByID = async (id: number) => {
     const res = await fetchDocumentBatchByID(id);
     if (res) {
+      if (res.batchTypeID === 21) {
+        setDisableBatchType(true);
+      }
       setAddUpdateJson(res);
     }
   };
-  const getDocumentDataByID = async (id: number) => {
-    const res = await fetchDocumentDataByID(id, batchcategoryID.current);
-    if (res) {
-      setSelectedFileslist(res);
-    }
-  };
+  // const getDocumentDataByID = async (id: number) => {
+  //   const res = await fetchDocumentDataByID(id, batchcategoryID.current);
+  //   if (res) {
+  //     setSelectedFileslist(res);
+  //   }
+  // };
 
   const getDocumentBatchTypeData = async () => {
     const res = await fetchBatchTypeData();
@@ -233,12 +318,20 @@ export default function AddDocumentBatch({
     }
   };
 
+  const getDocumentLockboxTypeData = async () => {
+    const res = await fetchLockboxTypeData();
+    if (res) {
+      setLockboxTypeDropdown(res);
+    }
+  };
+
   useEffect(() => {
     if (batchId) {
       getBatchByID(batchId);
-      getDocumentDataByID(batchId);
+      // getDocumentDataByID(batchId);
     }
     getDocumentBatchTypeData();
+    getDocumentLockboxTypeData();
   }, []);
 
   const onUpload = async () => {
@@ -246,17 +339,17 @@ export default function AddDocumentBatch({
       // in update mode
       if (batchId) {
         const formData = new FormData();
-        formData.append('batchID', String(batchId));
+        formData.append('attachedID', String(batchId));
         formData.append(
           'groupID',
           addUpdateJson.groupID ? String(addUpdateJson.groupID) : ''
         );
         formData.append('file', selectedFile);
-        formData.append('categoryID', batchcategoryID.current);
+        formData.append('documentTypeID', batchcategoryID.current);
 
         const res = await uploadBatchDocument(formData);
         if (res) {
-          await getDocumentDataByID(batchId);
+          // await getDocumentDataByID(batchId);
         } else {
           return;
         }
@@ -270,14 +363,19 @@ export default function AddDocumentBatch({
         setSelectedFileslist([
           ...selectedFilesList,
           {
-            documentID: undefined,
+            id: undefined,
             title: name || '',
-            systemDocumentType: `.${type || ''}`,
+            documentType: `.${type || ''}`,
             createdBy: user?.name || '',
             createdOn: getServerDateTimeString(),
             file: selectedFile,
             documentPath: '',
             active: null,
+            documentStatus: '',
+            category: '',
+            additionalComment1: '',
+            additionalComment2: '',
+            total: 0,
           },
         ]);
         setIsChangedJson(true);
@@ -291,6 +389,14 @@ export default function AddDocumentBatch({
       }, 100);
     }
   };
+
+  useEffect(() => {
+    if (selectedFilesList.length && addUpdateJson.batchTypeID === 21) {
+      setDisableUpload(true);
+    } else {
+      setDisableUpload(false);
+    }
+  }, [selectedFilesList, addUpdateJson.batchTypeID]);
 
   const convertFileToBase64 = (file: File): Promise<string> => {
     return new Promise<string>((resolve, reject) => {
@@ -314,11 +420,11 @@ export default function AddDocumentBatch({
       }
     }
     // in update mode
-    else if (res.documentID) {
-      const resDownloadDocument = await downloadDocumentBase64(res.documentID);
-      if (resDownloadDocument && resDownloadDocument.data) {
+    else if (res.id) {
+      const resDownloadDocument = await downloadDocumentBase64(res.id);
+      if (resDownloadDocument && resDownloadDocument.documentBase64) {
         // check the file extension
-        const extension = res.systemDocumentType.substring(1).toLowerCase();
+        const extension = res.documentType.substring(1).toLowerCase();
         // set the content type based on the file extension
         let contentType = '';
         if (extension === 'png') {
@@ -329,7 +435,7 @@ export default function AddDocumentBatch({
           contentType = 'application/pdf';
         }
         // concatenate the content type and base64 string
-        base64String = `data:${contentType};base64,${resDownloadDocument.data}`;
+        base64String = `data:${contentType};base64,${resDownloadDocument.documentBase64}`;
       }
     }
 
@@ -367,10 +473,10 @@ export default function AddDocumentBatch({
       }
     }
     // in update mode
-    else if (res.documentID) {
-      const resDownloadDocument = await downloadDocumentBase64(res.documentID);
-      if (resDownloadDocument && resDownloadDocument.data) {
-        base64String = `data:application/octet-stream;base64,${resDownloadDocument.data}`;
+    else if (res.id) {
+      const resDownloadDocument = await downloadDocumentBase64(res.id);
+      if (resDownloadDocument && resDownloadDocument.documentBase64) {
+        base64String = `data:application/octet-stream;base64,${resDownloadDocument.documentBase64}`;
       }
     }
 
@@ -380,7 +486,7 @@ export default function AddDocumentBatch({
       if (pdfWindow) {
         const a = document.createElement('a');
         a.href = base64String;
-        a.download = res.title + res.systemDocumentType;
+        a.download = res.title + res.documentType;
         a.click();
       }
     } else {
@@ -400,10 +506,10 @@ export default function AddDocumentBatch({
       setSelectedFileslist(selectedFilesList.filter((d) => d !== res));
     }
     // in update mode
-    else if (res.documentID) {
-      const docDelete = await deleteDocument(res.documentID);
+    else if (res.id) {
+      const docDelete = await deleteDocument(res.id);
       if (docDelete) {
-        await getDocumentDataByID(batchId);
+        // await getDocumentDataByID(batchId);
       }
     }
   };
@@ -471,6 +577,46 @@ export default function AddDocumentBatch({
                   </div>
                 </div>
               </div>
+
+              <div className="w-[255px] px-[5px] ">
+                <div
+                  className={`flex flex-col w-full items-start justify-start self-stretch`}
+                >
+                  <label className="text-sm font-medium leading-tight text-gray-700">
+                    Practice<span className="text-cyan-500">*</span>
+                  </label>
+                  <div className="w-full">
+                    <SingleSelectDropDown
+                      placeholder="Select practice"
+                      showSearchBar={false}
+                      data={
+                        practiceDropdown.length > 0
+                          ? (practiceDropdown as SingleSelectDropDownDataType[])
+                          : [
+                              {
+                                id: 1,
+                                value: 'No Record Found',
+                                active: false,
+                              },
+                            ]
+                      }
+                      selectedValue={
+                        practiceDropdown?.filter(
+                          (m) => m.id === addUpdateJson.practiceID
+                        )[0]
+                      }
+                      onSelect={(value) => {
+                        handleAddUpdateJson({
+                          ...addUpdateJson,
+                          practiceID: value.id,
+                          followupAssignee: undefined,
+                        });
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="w-[240px] px-[5px]">
                 <div
                   className={`flex flex-col w-full items-start justify-start self-stretch`}
@@ -580,7 +726,7 @@ export default function AddDocumentBatch({
                     <div className="w-full">
                       <SingleSelectDropDown
                         placeholder="-"
-                        disabled={false}
+                        disabled={!!disableBatchType}
                         data={batchTypeDropdown}
                         selectedValue={
                           batchTypeDropdown.filter(
@@ -597,6 +743,36 @@ export default function AddDocumentBatch({
                     </div>
                   </div>
                 </div>
+
+                {addUpdateJson.batchTypeID === 21 && (
+                  <div className="w-[240px] px-[5px]">
+                    <div
+                      className={`flex flex-col w-full items-start self-stretch`}
+                    >
+                      <label className="text-sm font-medium leading-tight text-gray-700">
+                        Lockbox Type<span className="text-cyan-500">*</span>
+                      </label>
+                      <div className="w-full">
+                        <SingleSelectDropDown
+                          placeholder="-"
+                          disabled={!!disableBatchType}
+                          data={lockboxTypeDropdown}
+                          selectedValue={
+                            lockboxTypeDropdown.find(
+                              (a) => a.id === addUpdateJson.lockboxTypeID
+                            ) || null
+                          }
+                          onSelect={(value) => {
+                            handleAddUpdateJson({
+                              ...addUpdateJson,
+                              lockboxTypeID: value.id,
+                            });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             {!batchId && (
@@ -610,7 +786,7 @@ export default function AddDocumentBatch({
                       Document Upload
                     </p>
                     <p className={`text-sm leading-tight text-gray-500`}>
-                      {'PNG, JPG, PDF up to 50MB'}
+                      {'PNG, JPG, PDF, TIF, ZIP up to 2GB'}
                     </p>
                   </div>
                   <div className="flex w-full">
@@ -625,7 +801,7 @@ export default function AddDocumentBatch({
                           <UploadFile
                             onFileSelect={(e) => {
                               const maxSize = e.size / 1024 / 1024;
-                              if (maxSize > 50) {
+                              if (maxSize > 2048) {
                                 dispatch(
                                   addToastNotification({
                                     id: uuidv4(),
@@ -637,8 +813,10 @@ export default function AddDocumentBatch({
                               }
                               setSelectedFile(e);
                             }}
+                            disabled={!!disableUpload}
                             selectedFileName={selectedFile?.name}
                             cls={'w-[280px] h-[38px] relative'}
+                            isZip={isZip}
                           ></UploadFile>
                           <Button
                             buttonType={
@@ -691,15 +869,13 @@ export default function AddDocumentBatch({
                             {selectedFilesList?.map((uploadDocRow, i) => (
                               <AppTableRow key={i}>
                                 <AppTableCell>
-                                  {uploadDocRow.documentID
-                                    ? `#${uploadDocRow.documentID}`
-                                    : ''}
+                                  {uploadDocRow.id ? `#${uploadDocRow.id}` : ''}
                                 </AppTableCell>
                                 <AppTableCell>
                                   {uploadDocRow.title}
                                 </AppTableCell>
                                 <AppTableCell>
-                                  {uploadDocRow.systemDocumentType
+                                  {uploadDocRow.documentType
                                     .substring(1)
                                     .toUpperCase()}
                                 </AppTableCell>

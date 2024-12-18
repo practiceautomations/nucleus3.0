@@ -1634,8 +1634,11 @@ export default function AddCharge({
                                 : []
                             }
                             selectedValue={batchNumber}
-                            onSelect={(e) => {
-                              setbatchNumber(e);
+                            onSelect={(e: any) => {
+                              if (e) {
+                                setbatchNumber(e);
+                                setPostingDate(e.postingDate);
+                              }
                             }}
                             onSearch={(value) => {
                               setBatchSearch({

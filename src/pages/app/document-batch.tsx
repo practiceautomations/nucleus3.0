@@ -22,14 +22,19 @@ import DetailDocumentBatch from '@/screen/batch/detailDocumentBatch';
 import { getselectdWorkGroupsIDsSelector } from '@/store/chrome/selectors';
 import {
   fetchAssignClaimToDataRequest,
+  fetchPracticeDataRequest,
   getLookupDropdownsRequest,
 } from '@/store/shared/actions';
 import {
-  fetchBatchStatus,
   fetchBatchTypeData,
   fetchDocumentBatchGridData,
+  fetchDocumentBatchStatus,
 } from '@/store/shared/sagas';
-import { getAssignClaimToDataSelector } from '@/store/shared/selectors';
+import {
+  getAssignClaimToDataSelector,
+  getPracticeDataSelector,
+} from '@/store/shared/selectors';
+import type { PracticeData } from '@/store/shared/types';
 import {
   type BatchSearchCriteria,
   type GetBatchSearchAPIResult,
@@ -59,7 +64,8 @@ const DocumentBatch = () => {
     type: StatusModalType.WARNING,
   });
   const defaultSearchCriteria: BatchSearchCriteria = {
-    groupID: 0,
+    groupIDS: 0,
+    practiceIDS: undefined,
     pageNumber: 1,
     pageSize: globalPaginationConfig.activePageSize,
     batchTypeID: [],
@@ -74,6 +80,7 @@ const DocumentBatch = () => {
     followUpAssignee: '',
   };
   const assignClaimToData = useSelector(getAssignClaimToDataSelector);
+  const practicesData = useSelector(getPracticeDataSelector);
   const [lastSearchCriteria, setLastSearchCriteria] = useState(
     defaultSearchCriteria
   );
@@ -92,6 +99,7 @@ const DocumentBatch = () => {
   const [selectedType, setSelecetedType] = useState<
     SingleSelectDropDownDataType[]
   >([]);
+  const [practiceDropdown, setPracticeDropdown] = useState<PracticeData[]>([]);
   const onSelectTypes = (arr: SingleSelectDropDownDataType[]) => {
     setSelecetedType(arr);
     setSearchCriteriaFields({
@@ -100,6 +108,28 @@ const DocumentBatch = () => {
     });
   };
 
+  useEffect(() => {
+    if (selectedWorkedGroup?.workGroupId) {
+      setPracticeDropdown(selectedWorkedGroup.practicesData);
+    }
+    if (
+      selectedWorkedGroup &&
+      selectedWorkedGroup?.groupsData?.length > 0 &&
+      selectedWorkedGroup?.groupsData[0]?.id
+    ) {
+      dispatch(
+        fetchPracticeDataRequest({
+          groupID: selectedWorkedGroup?.groupsData[0]?.id,
+        })
+      );
+    }
+  }, [selectedWorkedGroup]);
+
+  useEffect(() => {
+    if (practicesData?.length) {
+      setPracticeDropdown(practicesData);
+    }
+  }, [practicesData]);
   const getSearchData = async (obj: BatchSearchCriteria) => {
     const res = await fetchDocumentBatchGridData(obj);
     if (res) {
@@ -146,18 +176,18 @@ const DocumentBatch = () => {
   };
 
   const getDocumentBatchStatusData = async () => {
-    const res = await fetchBatchStatus();
+    const res = await fetchDocumentBatchStatus();
     if (res) {
       setBatchStatusDropdown(res);
     }
   };
 
   useEffect(() => {
-    const groupId = searchCriteria?.groupID;
+    const groupId = searchCriteria?.groupIDS;
     if (groupId) {
       dispatch(fetchAssignClaimToDataRequest({ clientID: groupId }));
     }
-  }, [searchCriteria?.groupID]);
+  }, [searchCriteria?.groupIDS]);
 
   const initProfile = () => {
     dispatch(getLookupDropdownsRequest());
@@ -176,7 +206,7 @@ const DocumentBatch = () => {
 
   const columns: GridColDef[] = [
     {
-      field: 'batchID',
+      field: 'documentBatchID',
       headerName: 'Batch ID',
       flex: 1,
       minWidth: 104,
@@ -192,7 +222,7 @@ const DocumentBatch = () => {
                 setOpenAddUpdateModealInfo({
                   open: true,
                   type: 'detail',
-                  id: params.row.batchID,
+                  id: params.row.documentBatchID,
                 });
               }}
             >
@@ -301,7 +331,7 @@ const DocumentBatch = () => {
     if (selectedWorkedGroup?.groupsData[0]?.id)
       setSearchCriteriaFields({
         ...searchCriteria,
-        groupID: selectedWorkedGroup?.groupsData[0]?.id || 0,
+        groupIDS: selectedWorkedGroup?.groupsData[0]?.id || 0,
       });
   }, [selectedWorkedGroup]);
 
@@ -448,50 +478,84 @@ const DocumentBatch = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="flex">
-                        <div className="mt-[16px] w-[50%] lg:w-[25%]">
-                          <div className="px-[5px] pb-[5px]">
-                            <p className="text-base font-bold leading-normal text-gray-700">
-                              Location
-                            </p>
+
+                      <div className="mt-[16px] px-[5px] pb-[5px]">
+                        <p className="text-base font-bold leading-normal text-gray-700">
+                          Location
+                        </p>
+                      </div>
+                      <div className="flex w-full flex-wrap">
+                        <div className={`lg:w-[60%] w-[50%] px-[5px] flex`}>
+                          <div className={`w-[50%] pr-[5px]`}>
+                            <div className={`w-full items-start self-stretch`}>
+                              <div className="truncate py-[2px] text-sm font-medium leading-tight text-gray-700">
+                                Group
+                              </div>
+                              <div className="w-full">
+                                <SingleSelectDropDown
+                                  placeholder="Search group"
+                                  showSearchBar={true}
+                                  disabled={false}
+                                  data={
+                                    groupDropdown as SingleSelectDropDownDataType[]
+                                  }
+                                  selectedValue={
+                                    groupDropdown.filter(
+                                      (f) => f.id === searchCriteria?.groupIDS
+                                    )[0]
+                                  }
+                                  onSelect={(value) => {
+                                    setSearchCriteriaFields({
+                                      ...searchCriteria,
+                                      groupIDS: value.id,
+                                      followUpAssignee: '',
+                                    });
+                                  }}
+                                />
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex w-full flex-wrap">
-                            <div className={`w-[100%] px-[5px]`}>
-                              <div
-                                className={`w-full items-start self-stretch`}
-                              >
-                                <div className="truncate py-[2px] text-sm font-medium leading-tight text-gray-700">
-                                  Group
-                                </div>
-                                <div className="w-full">
-                                  <SingleSelectDropDown
-                                    placeholder="Search group"
-                                    showSearchBar={true}
-                                    disabled={false}
-                                    data={
-                                      groupDropdown as SingleSelectDropDownDataType[]
-                                    }
-                                    selectedValue={
-                                      groupDropdown.filter(
-                                        (f) => f.id === searchCriteria?.groupID
-                                      )[0]
-                                    }
-                                    onSelect={(value) => {
-                                      setSearchCriteriaFields({
-                                        ...searchCriteria,
-                                        groupID: value.id,
-                                        followUpAssignee: '',
-                                      });
-                                    }}
-                                  />
-                                </div>
+                          <div className={`w-[40%] pl-[5px]`}>
+                            <div className={`w-full items-start self-stretch`}>
+                              <div className="truncate py-[2px] text-sm font-medium leading-tight text-gray-700">
+                                Practice
+                              </div>
+                              <div className="w-full">
+                                <SingleSelectDropDown
+                                  placeholder="Select practice"
+                                  showSearchBar={false}
+                                  data={
+                                    practiceDropdown.length
+                                      ? (practiceDropdown as SingleSelectDropDownDataType[])
+                                      : [
+                                          {
+                                            id: 1,
+                                            value: 'No Record Found',
+                                            active: false,
+                                          },
+                                        ]
+                                  }
+                                  selectedValue={
+                                    practiceDropdown.filter(
+                                      (f) =>
+                                        f.id === searchCriteria?.practiceIDS
+                                    )[0]
+                                  }
+                                  onSelect={(value) => {
+                                    setSearchCriteriaFields({
+                                      ...searchCriteria,
+                                      practiceIDS: value.id,
+                                      followUpAssignee: '',
+                                    });
+                                  }}
+                                />
                               </div>
                             </div>
                           </div>
                         </div>
-                        <div className={'mt-[16px] px-[15px]'}>
-                          <div className={`w-[1px] h-full bg-gray-200`} />
-                        </div>
+                      </div>
+
+                      <div className="flex">
                         <div className="mt-[16px] md:w-[50%] lg:w-[25%]">
                           <div className="px-[5px] pb-[5px]">
                             <p className="text-base font-bold leading-normal text-gray-700">
@@ -605,7 +669,7 @@ const DocumentBatch = () => {
                     totalCount={totalCount}
                     rows={
                       searchResult.map((row) => {
-                        return { ...row, id: row.batchID };
+                        return { ...row, id: row.documentBatchID };
                       }) || []
                     }
                     columns={columns}
