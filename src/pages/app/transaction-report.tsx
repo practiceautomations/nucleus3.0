@@ -1,6 +1,7 @@
 import type { GridColDef, GridColTypeDef } from '@mui/x-data-grid-pro';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import type { MultiValue } from 'react-select';
 import { v4 as uuidv4 } from 'uuid';
 
 import Icon from '@/components/Icon';
@@ -12,6 +13,8 @@ import Button, { ButtonType } from '@/components/UI/Button';
 import type { ButtonSelectDropdownDataType } from '@/components/UI/ButtonSelectDropdown';
 import ButtonSelectDropdownForExport from '@/components/UI/ButtonSelectDropdownForExport';
 import InputField from '@/components/UI/InputField';
+import type { MultiSelectGridDropdownDataType } from '@/components/UI/MultiSelectGridDropdown';
+import MultiSelectGridDropdown from '@/components/UI/MultiSelectGridDropdown';
 import RadioButton from '@/components/UI/RadioButton';
 import SearchDetailGrid, {
   globalPaginationConfig,
@@ -35,6 +38,7 @@ import {
   fetchInsuranceData,
   fetchLedgerAccount,
   fetchPaymentReportSearchData,
+  getCPTSearchDataAsyc,
   getReasonCode,
 } from '@/store/shared/sagas';
 import {
@@ -47,6 +51,7 @@ import {
 } from '@/store/shared/selectors';
 import type {
   AllInsuranceData,
+  CPTSearchOutput,
   FacilityData,
   GetPaymentReportCriteria,
   GetPaymentReportResult,
@@ -141,7 +146,7 @@ const PaymentBatch = () => {
     createdBy: undefined,
     claimCreatedBy: undefined,
     claimID: undefined,
-    cpt: undefined,
+    cpts: [],
     chargeID: undefined,
     firstName: undefined,
     lastName: undefined,
@@ -168,7 +173,34 @@ const PaymentBatch = () => {
     GetPaymentReportsSummaryResult[]
   >([]);
   const [totalCount, setTotalCount] = useState<number>(0);
-
+  const [CPTCodeData, setCPTCodeData] = useState<CPTSearchOutput[]>([]);
+  const getCPTCodeData = async (value: string) => {
+    if (!searchCriteria.groupID) {
+      addToastNotification({
+        text: 'Please Select Healthcare Group from Organization Selector.',
+        toastType: ToastType.ERROR,
+        id: '',
+      });
+    } else {
+      setCPTCodeData([]);
+      const res = await getCPTSearchDataAsyc(value, searchCriteria.groupID);
+      if (res) {
+        setCPTCodeData(res);
+      }
+    }
+  };
+  const [selectedCPTs, setSelectedCPTs] = useState<
+    MultiValue<MultiSelectGridDropdownDataType>
+  >([]);
+  const onSelectCPTCode = (
+    arr: MultiValue<MultiSelectGridDropdownDataType>
+  ) => {
+    setSelectedCPTs(arr);
+    setSearchCriteria({
+      ...searchCriteria,
+      cpts: arr.map((Item) => Item.value),
+    });
+  };
   const setSearchCriteriaFields = (value: GetPaymentReportCriteria) => {
     setSearchCriteria(value);
     setIsChangedJson(true);
@@ -709,10 +741,10 @@ const PaymentBatch = () => {
         Value: searchCriteria?.claimID?.toString() || '',
       });
     }
-    if (searchCriteria.cpt) {
+    if (searchCriteria.cpts) {
       criteriaArray.push({
-        Criteria: 'CPT Code',
-        Value: searchCriteria?.cpt || '',
+        Criteria: 'CPT Codes',
+        Value: searchCriteria?.cpts || '',
       });
     }
     if (searchCriteria.chargeID) {
@@ -873,7 +905,7 @@ const PaymentBatch = () => {
       claimCreatedTo: searchCriteria.claimCreatedTo,
       claimCreatedBy: searchCriteria.claimCreatedBy,
       claimID: searchCriteria.claimID,
-      cpt: searchCriteria.cpt,
+      cpts: searchCriteria.cpts,
       firstName: searchCriteria.firstName,
       lastName: searchCriteria.lastName,
       patientID: searchCriteria.patientID,
@@ -1147,11 +1179,11 @@ const PaymentBatch = () => {
             };
             criteriaArray.push(JSON.parse(JSON.stringify(criteriaObj)));
           }
-          if (searchCriteria?.cpt) {
+          if (searchCriteria?.cpts) {
             criteriaObj = {
               ...criteriaObj,
-              Practice: 'CPT Code',
-              'Patient Name': searchCriteria?.cpt || '',
+              Practice: 'CPT Codes',
+              'Patient Name': searchCriteria?.cpts.join(',') || '',
             };
             criteriaArray.push(JSON.parse(JSON.stringify(criteriaObj)));
           }
@@ -1995,19 +2027,39 @@ const PaymentBatch = () => {
                         <div className={`w-[50%] px-[5px] lg:w-[23%]`}>
                           <div className={`w-full items-start self-stretch`}>
                             <div className="truncate py-[2px] text-sm font-medium leading-tight text-gray-700">
-                              CPT Code
+                              CPT Codes
                             </div>
                             <div className="w-full">
-                              <InputField
-                                placeholder="-"
-                                value={searchCriteria.cpt}
-                                onChange={(evt) => {
-                                  setSearchCriteriaFields({
-                                    ...searchCriteria,
-                                    cpt: evt.target.value,
-                                  });
+                              <MultiSelectGridDropdown
+                                placeholder=""
+                                showSearchBar={true}
+                                data={CPTCodeData}
+                                selectedValue={selectedCPTs}
+                                onSelect={(value) => {
+                                  onSelectCPTCode(value);
                                 }}
+                                onSearch={(value) => {
+                                  getCPTCodeData(value);
+                                }}
+                                appendTextSeparator={'|'}
                               />
+                              {/* <MultiSelectDropDown
+                                placeholder="Select CPTs"
+                                forcefullyShowSearchBar={true}
+                                disabled={false}
+                                data={CPTCodeData}
+                                selectedValue={CPTCodeData.filter((m) =>
+                                  searchCriteria.cpts?.includes(
+                                    m.value.toString()
+                                  )
+                                )}
+                                onSelect={(value) => {
+                                  onSelectCPTCode(value);
+                                }}
+                                onSearch={(value) => {
+                                  getCPTCodeData(value);
+                                }}
+                              /> */}
                             </div>
                           </div>
                         </div>

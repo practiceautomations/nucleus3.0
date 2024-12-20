@@ -129,6 +129,9 @@ export default function InfoToggle({
               },
             },
           ]}
+          onPointerEnterCapture={undefined} // Ensure this event handler is defined
+          onPointerLeaveCapture={undefined}
+          placeholder=""
         >
           <div
             className={classNames(

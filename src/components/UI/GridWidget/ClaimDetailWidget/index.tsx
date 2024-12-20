@@ -203,7 +203,6 @@ export default function ClaimDetailWidget({
       if (res.adnareResponse) {
         adnareResponseWindow = window.open('about:blank', '_blank');
       }
-      console.log('Window', adnareResponseWindow);
       if (responseWindow) {
         // Write the response content to the first window
         responseWindow.document.write(res.response);

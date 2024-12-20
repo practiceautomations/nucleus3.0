@@ -7,9 +7,9 @@ import { addToastNotification } from '@/store/shared/actions';
 import {
   createCrossOverClaim,
   getClaimAssignToData,
-  getClaimDetailSummaryById,
-  getClaimTransferInsurance,
-  getCrossoverClaimType,
+  getCrossoverChargesByPatientID,
+  getCrossoverPatientInsuranceType,
+  getSelectedCrossoverPatientInsurance,
   submitClaim,
 } from '@/store/shared/sagas';
 import type {
@@ -29,18 +29,16 @@ import StatusModal, { StatusModalType } from '../StatusModal';
 import TextArea from '../TextArea';
 
 export interface CreateCrossoverProp {
-  claimID?: number;
   onClose: () => void;
   groupID?: number;
   patientID?: number;
-  selectedChargeID?: number;
+  insResponsibilityType?: string;
 }
-export default function CreateCrossover({
-  claimID,
+export default function CrossoverInsurancePayment({
   onClose,
   groupID,
   patientID,
-  selectedChargeID,
+  insResponsibilityType,
 }: CreateCrossoverProp) {
   const dispatch = useDispatch();
   const [summaryCharges, setSummaryCharges] = useState<SummaryBillingCharges[]>(
@@ -49,20 +47,26 @@ export default function CreateCrossover({
   const [crossOverTypeData, setCrossOverTypeData] = useState<
     SingleSelectDropDownDataType[]
   >([]);
+
   const [crossOverClaimToData, setCrossOverClaimToData] = useState<
     SingleSelectDropDownDataType[]
   >([]);
   const [crossOverAssignToData, setCrossOverAssignToData] = useState<
     SingleSelectDropDownDataType[]
   >([]);
+  const [insType, setInsType] = useState<string>();
   const [selectRows, setSelectRows] = useState<number[]>([]);
   const [crossoverID, setCrossoverID] = useState<number>();
   const [jsonData, setJsonData] = useState<{
     crossOverType?: SingleSelectDropDownDataType;
-    crossOverClaimTo?: SingleSelectDropDownDataType;
+    crossOverClaimTo?: {
+      value: string; // What will be used as the value
+      id: number;
+    };
     crossOverAssignTo?: SingleSelectDropDownDataType;
     comment?: string;
     chargesData?: {
+      claimID: number;
       chargeID: number;
       amount: string;
     }[];
@@ -77,18 +81,20 @@ export default function CreateCrossover({
     return 'text-yellow-500';
   };
   const getChargesData = async () => {
-    const res = await getClaimDetailSummaryById(claimID || 0);
+    const res = await getCrossoverChargesByPatientID(
+      patientID || 0,
+      String(insResponsibilityType)
+    );
     if (res) {
       setSummaryCharges(res.charges);
-      if (selectedChargeID) {
-        setSelectRows([selectedChargeID]);
-      } else {
-        setSelectRows(res.charges.map((row) => row.chargeID) || []);
-      }
+
+      setSelectRows(res.charges.map((row) => row.chargeID) || []);
+
       setJsonData((prevData) => ({
         ...prevData,
         chargesData:
           res.charges.map((row) => ({
+            claimID: row.claimID || 0,
             chargeID: row.chargeID,
             amount: '',
           })) || [],
@@ -165,13 +171,22 @@ export default function CreateCrossover({
       };
     });
   };
-  const getCrossoverTypeData = async () => {
-    if (claimID) {
-      const res = await getCrossoverClaimType(claimID);
-      if (res) {
-        setCrossOverTypeData(res);
+  const CrossoverPatientInsuranceType = async () => {
+    if (patientID && insResponsibilityType) {
+      const res = await getCrossoverPatientInsuranceType(
+        patientID,
+        insResponsibilityType
+      );
+      if (res && res.length) {
+        const formattedData = res.map((item: any) => ({
+          value: item.insResponsibility, // What will be used as the value
+          label: item.insResponsibility, // What will be shown in the dropdown
+        }));
+
+        setCrossOverTypeData(formattedData); // Update the state with formatted data
         if (res.length === 1) {
-          updateJson(null, 'crossOverType', res[0]);
+          updateJson(null, 'crossOverType', formattedData[0]);
+          setInsType(formattedData[0].value);
         }
       }
     }
@@ -182,19 +197,35 @@ export default function CreateCrossover({
       setCrossOverAssignToData(res);
     }
   };
-  const getClaimTransferInsuranceData = async () => {
-    const res = await getClaimTransferInsurance(claimID);
-    if (res) {
-      setCrossOverClaimToData(res);
-      if (res.length === 1) {
-        updateJson(null, 'crossOverClaimTo', res[0]);
+
+  const getClaimTransferInsuranceData1 = async () => {
+    if (patientID && insType) {
+      const res = await getSelectedCrossoverPatientInsurance(
+        patientID,
+        insType
+      );
+      if (res && res.length) {
+        const formattedData = res.map((item: any) => ({
+          value: item.name, // What will be used as the value
+          id: item.insID, // What will be shown in the dropdown
+        }));
+
+        setCrossOverClaimToData(formattedData); // Update the state with formatted data
+        if (res.length === 1) {
+          updateJson(null, 'crossOverClaimTo', formattedData[0]); // Set the default value if there is only one item
+        }
       }
     }
   };
   useEffect(() => {
-    getCrossoverTypeData();
+    if (insType) {
+      getClaimTransferInsuranceData1(); // Now run this when insType is set
+    }
+  }, [insType]);
+  useEffect(() => {
+    CrossoverPatientInsuranceType();
     getChargesData();
-    getClaimTransferInsuranceData();
+    getClaimTransferInsuranceData1();
     getClaimCrossOverAssignto();
   }, []);
   const onSubmitClaim = async (
@@ -305,7 +336,12 @@ export default function CreateCrossover({
         );
         return;
       }
-      const invalidAmount = jsonData?.chargesData.filter((charge) => {
+      const selectedCharges1 = jsonData?.chargesData.filter((charge) =>
+        selectRows.includes(charge.chargeID)
+      );
+
+      // Step 2: Check for invalid amounts based on insuranceBalance from summaryCharges
+      const invalidAmount = selectedCharges1.filter((charge) => {
         const insuranceBalance = summaryCharges.find(
           (data) => data.chargeID === charge.chargeID
         )?.insuranceBalance;
@@ -323,7 +359,7 @@ export default function CreateCrossover({
       }
       selectedCharges.forEach((charge) => {
         const newData: CreateCrossoverCriteria = {
-          claimID: claimID || 0,
+          claimID: charge?.claimID || 0,
           chargeID: charge.chargeID,
           patientID: patientID || 0,
           secondaryInsuranceID: jsonData.crossOverClaimTo?.id || null,
@@ -351,7 +387,6 @@ export default function CreateCrossover({
       }
     }
   };
-
   const columns: GridColDef[] = [
     {
       field: 'chargeID',
@@ -362,6 +397,12 @@ export default function CreateCrossover({
       renderCell: (params) => {
         return <p>{`#${params.id}`}</p>;
       },
+    },
+    {
+      field: 'claimID',
+      headerName: 'Claim ID',
+      minWidth: 100,
+      disableReorder: true,
     },
     {
       field: 'cpt',
@@ -460,16 +501,32 @@ export default function CreateCrossover({
       minWidth: 200,
       disableReorder: true,
       renderCell: (params) => {
+        // Get the insuranceBalance as a default value
+        const defaultAmount = params.row.insuranceBalance || 0;
+
+        // Initialize state to track the amount input
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        const [amount, setAmount] = useState(() => {
+          // Set the initial value only once
+          const initialAmount = jsonData?.chargesData?.find(
+            (charge) => charge.chargeID === params.row.chargeID
+          )?.amount;
+
+          updateJson(params.row.chargeID, 'charge', defaultAmount);
+
+          return initialAmount !== undefined ? initialAmount : defaultAmount;
+        });
+
         return (
           <InputFieldAmount
             disabled={false}
             showCurrencyName={false}
-            value={
-              jsonData?.chargesData?.find(
-                (charge) => charge.chargeID === params.row.chargeID
-              )?.amount || ''
-            }
+            value={amount}
             onChange={(e) => {
+              // Update state with new value
+              setAmount(e.target.value);
+
+              // Call the function to update the JSON data
               updateJson(params.row.chargeID, 'charge', e.target.value);
             }}
           />
@@ -492,7 +549,7 @@ export default function CreateCrossover({
         >
           <div className="flex items-center justify-start space-x-2">
             <p className="text-xl font-bold leading-7 text-gray-700">
-              Create Crossover Claim {claimID}
+              Crossover Claim {patientID}
             </p>
           </div>
           <CloseButton onClick={onClose} />
@@ -516,7 +573,10 @@ export default function CreateCrossover({
                   data={crossOverTypeData}
                   selectedValue={jsonData?.crossOverType}
                   onSelect={(e) => {
-                    updateJson(null, 'crossOverType', e);
+                    if (e) {
+                      updateJson(null, 'crossOverType', e);
+                      setInsType(e.value);
+                    }
                   }}
                 />
               </div>

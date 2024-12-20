@@ -477,7 +477,7 @@ const ARManagerDashboard = ({
     createdBy: undefined,
     claimCreatedBy: undefined,
     claimID: undefined,
-    cpt: undefined,
+    cpts: [],
     chargeID: undefined,
     firstName: undefined,
     lastName: undefined,

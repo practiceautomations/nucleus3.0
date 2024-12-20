@@ -726,12 +726,18 @@ const ARClaimsTab = forwardRef<PrintChildRef>((_, ref) => {
   };
 
   const isLoaded = useRef(false);
+  // useEffect(() => {
+  //   if (!isLoaded.current && !searchCriterea.startDate) {
+  //     onCinfirm();
+  //     isLoaded.current = true;
+  //   }
+  // }, [searchCriterea.startDate]);
   useEffect(() => {
-    if (!isLoaded.current && !searchCriterea.startDate) {
+    if (!isLoaded.current && selectedWorkGroupData) {
       onCinfirm();
       isLoaded.current = true;
     }
-  }, [searchCriterea.startDate]);
+  }, [selectedWorkGroupData]);
   interface ActivefiltersProps {
     id: number | undefined;
     value: string;

@@ -147,10 +147,10 @@ function RenderLogsMainSection({ dataList }: TPropsRenderLogsMainSection) {
     }
     if (d.tagID === 14 && d.linkID) {
       const downloadDocData = await downloadDocumentBase64(d.linkID);
-      if (downloadDocData && downloadDocData.data) {
-        const pdfResult = downloadDocData.data;
+      if (downloadDocData && downloadDocData.documentBase64) {
+        const pdfResult = downloadDocData.documentBase64;
         const pdfWindow = window.open('');
-        if (downloadDocData.fileType !== '.pdf') {
+        if (downloadDocData.documentExtension !== '.pdf') {
           if (pdfWindow) {
             pdfWindow.document.write(
               `<iframe  width='100%' height='100%'  style='position:fixed; top:0; left:0; bottom:0; right:0; transform: translate(5%, 5%); width:100%; height:100%; border:none; margin:0; padding:0; overflow:hidden; z-index:999999;' src='data:image/png;base64, ${pdfResult}

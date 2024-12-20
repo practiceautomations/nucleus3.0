@@ -55,6 +55,7 @@ const initialState: LoginState = {
   user: null,
   error: null,
   email: '',
+  password: '',
   loginAttempts: 0,
   menuItems: [],
   // selectedMenuItem: null,
@@ -68,6 +69,7 @@ const loginReducer = (state = initialState, action: LoginActions) => {
         ...state,
         loading: true,
         email: action.payload.email,
+        password: action.payload.password,
       };
     case LOGIN_ATTEMPTS:
       return {

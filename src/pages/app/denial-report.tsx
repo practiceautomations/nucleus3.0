@@ -450,6 +450,7 @@ const DenialReport = () => {
     setProviderDropdown(providersData || []);
     setFacilityDropdown(facilityData || []);
   }, [practiceData, providersData, facilityData]);
+
   const downloadPdf = (pdfExportData: GetDenialReportResult[]) => {
     if (!pdfExportData) {
       setStatusModalInfo({
@@ -677,8 +678,8 @@ const DenialReport = () => {
         const exportDataArray = res.map((n) => {
           return {
             Group: n.group,
-            'Claim ID': n.claimID.toString(),
-            'Charge ID': n.chargeID.toString(),
+            'Claim ID': n.claimID?.toString(),
+            'Charge ID': n.chargeID?.toString(),
             'Patient Name': n.patient,
             'CPT Code': n.cpt,
             Modifier: n.modifier,

@@ -7,6 +7,7 @@ import { DateToStringPipe } from '@/utils/dateConversionPipes';
 
 import Button, { ButtonType } from '../Button';
 import InputField from '../InputField';
+import RadioButton from '../RadioButton';
 import type { SingleSelectDropDownDataType } from '../SingleSelectDropDown';
 import SingleSelectDropDown from '../SingleSelectDropDown';
 import TextArea from '../TextArea';
@@ -39,7 +40,7 @@ export default function EditCreateClaimNote({
   const [noteSubject, onNoteSubjectChange] = useState<string>();
   const [selectedNoteType, onSelectNoteType] =
     useState<SingleSelectDropDownDataType>();
-
+  const [showAlert, setShowAlert] = useState('false');
   useEffect(() => {
     if (noteDetailsData && !isCreateNote) {
       setIsEditMode(true);
@@ -178,6 +179,29 @@ export default function EditCreateClaimNote({
                   />
                 </div>
               </div>
+              <div className={`w-[400px]  flex flex-row gap-2 justify-between`}>
+                <label className="flex items-center text-sm font-medium leading-5 text-gray-900">
+                  Show Alert: <span className="text-cyan-500">*</span>
+                </label>
+                <div className="h-[38px] w-[318px]">
+                  <RadioButton
+                    data={[
+                      {
+                        value: 'true',
+                        label: 'Yes',
+                      },
+                      {
+                        value: 'false',
+                        label: 'No',
+                      },
+                    ]}
+                    checkedValue={showAlert}
+                    onChange={(e) => {
+                      setShowAlert(e.target.value);
+                    }}
+                  />
+                </div>
+              </div>
             </div>
             {noteDetailsData && (
               <div className="flex w-full flex-col">
@@ -255,6 +279,7 @@ export default function EditCreateClaimNote({
                         comment: note || '',
                         noteTypeID: selectedNoteType.id,
                         subject: noteSubject || '',
+                        alert: showAlert,
                       });
                     } else {
                       onAddNoteClick({
@@ -263,6 +288,7 @@ export default function EditCreateClaimNote({
                         comment: note || '',
                         noteTypeID: selectedNoteType.id,
                         subject: noteSubject || '',
+                        alert: showAlert,
                       });
                     }
                   }

@@ -35,6 +35,7 @@ import InsuranceFinder from '../PatientTabs/insurancerFinder';
 import AppDatePicker from '../UI/AppDatePicker';
 import Button, { ButtonType } from '../UI/Button';
 import CloseButton from '../UI/CloseButton';
+import CrossoverInsurancePayment from '../UI/CrossoverInsurancePayment';
 import Modal from '../UI/Modal';
 import SearchDetailGrid from '../UI/SearchDetailGrid';
 import SectionHeading from '../UI/SectionHeading';
@@ -63,6 +64,13 @@ export default function PatientInsuranceTab({
 
   const [selectedInsuranceGridRow, setSelectedInsuranceGridRow] =
     useState<PatientInsuranceTabData>();
+
+  // const [selectedCrossOverChargeId, setSelectedCrossOverChargeId] =
+  //    useState<number>();
+  const [showCrossoverClaimModal, setShowCrossoverClaimModal] =
+    useState<boolean>(false);
+
+  const [insResponsibility, setInsResponsibility] = useState<string>();
 
   const [isViewInsuranceMode, setIsViewInsuranceMode] = useState(false);
   const [insuranceAllData, setInsuanceAllData] = useState<AllInsuranceData[]>(
@@ -481,7 +489,7 @@ export default function PatientInsuranceTab({
       headerName: 'Actions',
       headerClassName: '!bg-cyan-100 !text-center',
       flex: 1,
-      minWidth: 180,
+      minWidth: 220,
       disableReorder: true,
       cellClassName: '!bg-cyan-50',
       renderCell: (params) => {
@@ -551,6 +559,22 @@ export default function PatientInsuranceTab({
             >
               <Icon name={'trash'} size={18} />
             </Button>
+            {params.row.payerResponsibility !== 'Tertiary' && (
+              <Button
+                buttonType={ButtonType.secondary}
+                onClick={() => {
+                  setShowCrossoverClaimModal(true);
+                  setInsResponsibility(params.row.payerResponsibility);
+                }}
+                cls={`h-[38px] w-[38px] justify-center !px-2 !py-1 mr-1 inline-flex gap-2 leading-5`}
+              >
+                <Icon
+                  name={'moneyTransfer'}
+                  size={18}
+                  color={IconColors.GRAY}
+                />
+              </Button>
+            )}
           </div>
         );
       },
@@ -690,6 +714,24 @@ export default function PatientInsuranceTab({
                     }}
                     insuranceSubscriberData={insuranceSubscriberData || null}
                     isViewMode={isViewInsuranceMode}
+                  />
+                </Modal>
+
+                <Modal
+                  open={showCrossoverClaimModal}
+                  onClose={() => {}}
+                  modalContentClassName="relative w-[1232px] overflow-hidden rounded-lg bg-white shadow-xl transition-all sm:my-8 w-full"
+                >
+                  <CrossoverInsurancePayment
+                    patientID={patientID || 0}
+                    insResponsibilityType={insResponsibility || ''}
+                    groupID={selectedPatientData.groupID}
+                    onClose={() => {
+                      setShowCrossoverClaimModal(false);
+                      // setSelectedCrossOverChargeId(undefined);
+                      // getCrossoverChargesByPatientID(patientID || 0, insResponsibilityType: String || '')
+                      // getClaimSummaryData(claimID);
+                    }}
                   />
                 </Modal>
               </div>

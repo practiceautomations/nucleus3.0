@@ -13,6 +13,7 @@ export interface UploadFileProps
   cls?: string;
   onFileSelect: (value: File) => void;
   selectedFileName?: string;
+  isZip?: boolean;
 }
 
 const UploadFile = ({
@@ -21,6 +22,7 @@ const UploadFile = ({
   cls,
   onFileSelect,
   selectedFileName,
+  isZip = false,
   ...rest
 }: UploadFileProps) => {
   const inputFile = useRef<HTMLInputElement | null>(null);
@@ -34,7 +36,17 @@ const UploadFile = ({
     if (event.target.files && event.target.files[0]) {
       onFileSelect(event.target.files[0]);
       // eslint-disable-next-line no-param-reassign
-      event.target.value = '';
+
+      // const selectedFile = event.target.files[0];
+      /// / Check if the selected file is a zip file if isZip is true
+      // if (isZip && selectedFile.type !== 'application/zip') {
+      //    alert('Please select a ZIP file.');
+      //    return;
+      // }
+      // onFileSelect(selectedFile);
+      /// / Reset the input value
+
+      // event.target.value = '';
     }
   };
   return (
@@ -59,7 +71,11 @@ const UploadFile = ({
         ref={inputFile}
         disabled={disabled}
         type={'file'}
-        accept="application/pdf,image/jpeg,image/png"
+        accept={
+          isZip
+            ? 'application/zip'
+            : 'application/pdf,image/jpeg,image/png,application/zip'
+        }
         className="hidden"
         onChange={onFileChange}
       />

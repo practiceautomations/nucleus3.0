@@ -42,6 +42,7 @@ import {
 import {
   deletePatient,
   fetchActiveProvidersDropdownData,
+  fetchClaimNotesData,
   fetchInsuranceData,
   fetchPatientDataByID,
   getDuplicateWarning,
@@ -316,7 +317,7 @@ Tprops) {
       zip: '',
       zipPlus4: '',
       error: '',
-      validateID: null || undefined,
+      validateID: undefined,
       validateOn: null,
     });
 
@@ -429,9 +430,7 @@ Tprops) {
               (m) => m.id === selectedPatientData.genderID
             )[0]?.value || '-',
           verifiedValue:
-            validateDemographicData.data?.gender === 'm'
-              ? 'Male'
-              : 'Female' || '-',
+            validateDemographicData.data?.gender === 'm' ? 'Male' : 'Female',
           checked: false,
         },
         {
@@ -1726,13 +1725,30 @@ Tprops) {
     }
     return isValid;
   };
-
   // Notes Section
+  const [noteAlertData, setnoteAlertData] = useState<ClaimNotesData[]>([]);
+  const [showNoteAlert, setShowNoteAlert] = useState(false);
+  const getClaimNotesData = async () => {
+    const res = await fetchClaimNotesData(
+      selectedPatientID,
+      'Patient',
+      null,
+      null
+    );
+    if (res) {
+      const notesWithAlert = res.filter((note) => note.alert === 'Yes');
+      if (notesWithAlert.length) {
+        setnoteAlertData(notesWithAlert);
+        setShowNoteAlert(true);
+      }
+    }
+  };
   const [isOpenNotePane, setIsOpenNotePane] = React.useState(false);
   useState<ClaimNotesData>();
   const initProfile = () => {
     dispatch(getLookupDropdownsRequest());
     dispatch(fetchGroupDataRequest());
+    getClaimNotesData();
   };
   useEffect(() => {
     initProfile();
@@ -1781,6 +1797,94 @@ Tprops) {
       });
     }
   };
+
+  const columns: GridColDef[] = [
+    {
+      field: 'id',
+      headerName: 'ID',
+      flex: 1,
+      maxWidth: 70,
+
+      // cellClassName: {`${bg-${}}`}
+      disableReorder: true,
+      hideSortIcons: true,
+      renderCell: (params) => {
+        return (
+          <div
+            className={`cursor-pointer text-sm font-normal leading-5`}
+            onClick={async () => {}}
+          >
+            #{params.value}
+          </div>
+        );
+      },
+    },
+    {
+      field: 'noteType',
+      headerName: 'Note Type',
+      flex: 1,
+      maxWidth: 150,
+      hideSortIcons: true,
+      disableReorder: true,
+      renderCell: (params) => {
+        return (
+          <div
+            className={`cursor-pointer text-sm font-normal leading-5`}
+            style={{ textAlign: 'left' }}
+            onClick={async () => {}}
+          >
+            {params.value}
+          </div>
+        );
+      },
+    },
+    {
+      field: 'comment',
+      headerName: 'Comment',
+      flex: 1,
+      disableReorder: true,
+      hideSortIcons: true,
+      renderCell: (params) => {
+        return (
+          <div
+            className={`cursor-pointer text-sm font-normal leading-5`}
+            style={{ textAlign: 'left' }}
+            onClick={async () => {}}
+          >
+            {params.value}
+          </div>
+        );
+      },
+    },
+    {
+      field: 'createdOn',
+      headerName: 'Created On',
+      flex: 1,
+      maxWidth: 120,
+      disableReorder: true,
+      hideSortIcons: true,
+      renderCell: (params) => {
+        return (
+          <div className="flex flex-col">
+            <div
+              className="cursor-pointer text-sm font-normal leading-5"
+              onClick={async () => {}}
+            >
+              {DateToStringPipe(new Date(params.value), 2)}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      field: 'createdBy',
+      headerName: 'Created By',
+      flex: 1,
+      maxWidth: 120,
+      disableReorder: true,
+      hideSortIcons: true,
+    },
+  ];
   return (
     <>
       <StatusModal
@@ -3721,20 +3825,20 @@ Tprops) {
                                     disabled={false}
                                     data={
                                       patientlookupData
-                                        ? (patientlookupData?.smokingStatus as SingleSelectDropDownDataType[])
+                                        ? (patientlookupData?.guarantorRelation as SingleSelectDropDownDataType[])
                                         : []
                                     } // relation
                                     selectedValue={
-                                      patientlookupData?.smokingStatus.filter(
+                                      patientlookupData?.guarantorRelation.filter(
                                         (m) =>
-                                          m.id ===
-                                          selectedPatientData.smokingStatusID
+                                          m.value ===
+                                          selectedPatientData.emergencyRelation
                                       )[0]
                                     }
                                     onSelect={(ss) => {
                                       setSelectedPatientData({
                                         ...selectedPatientData,
-                                        smokingStatusID: ss.id,
+                                        emergencyRelation: ss.value,
                                       });
                                       setIsJsonChanged(true);
                                     }}
@@ -3742,7 +3846,7 @@ Tprops) {
                                     onDeselectValue={() => {
                                       setSelectedPatientData({
                                         ...selectedPatientData,
-                                        smokingStatusID: undefined,
+                                        emergencyRelation: '',
                                       });
                                       setIsJsonChanged(true);
                                     }}
@@ -4850,6 +4954,51 @@ Tprops) {
         </div>
       </div>
       <>
+        <Modal
+          open={showNoteAlert}
+          onClose={() => {}}
+          hideBackdrop={false}
+          modalContentClassName="relative h-[538px] w-[1260px] overflow-hidden rounded-lg bg-white shadow-xl transition-all sm:my-8 w-full"
+        >
+          <div className="flex h-full w-full flex-col ">
+            <div className="flex max-w-full flex-col gap-4 bg-gray-100 p-[24px]">
+              <div className="flex flex-row justify-between ">
+                <div>
+                  <h1 className=" text-left  text-xl font-bold leading-7 text-gray-700">
+                    {'Patient Notes Alert'}
+                  </h1>
+                </div>
+                <div className="">
+                  <CloseButton
+                    onClick={() => {
+                      setShowNoteAlert(false);
+                    }}
+                  />
+                </div>
+              </div>
+              <div className={`w-full`}>
+                <div className={`h-px bg-gray-300 `}></div>
+              </div>
+            </div>
+            <div className="!h-[603px] w-full overflow-y-auto p-4">
+              <SearchDetailGrid
+                rows={noteAlertData}
+                columns={columns}
+                showTableHeading={false}
+                checkboxSelection={false}
+                hideHeader={true}
+                hideFooter={true}
+                disableRowSelection={true}
+                pinnedColumns={{
+                  right: ['actions'],
+                }}
+              />
+              <div className="w-full">
+                <div className="p-4"></div>
+              </div>
+            </div>
+          </div>
+        </Modal>
         {/* <Modal
           open={isTimeFrameHistory}
           onClose={() => {

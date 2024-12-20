@@ -10,8 +10,11 @@ const AppSpinner = () => {
     <>
       <Popper
         open={!!showAppSpinnerRequest.length}
-        className="!pointer-events-none !absolute inset-0 z-[9993] flex flex !cursor-wait items-center justify-center px-4 py-6 sm:p-6"
+        className="!pointer-events-none !absolute inset-0 z-[9993] flex !cursor-wait items-center justify-center px-4 py-6 sm:p-6"
         style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
+        onPointerEnterCapture={undefined} // Ensure this event handler is defined
+        onPointerLeaveCapture={undefined}
+        placeholder=""
       >
         <div>
           <svg
