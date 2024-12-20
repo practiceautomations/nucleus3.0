@@ -4177,7 +4177,7 @@ export async function updateDocumentBatch(payload: TDocumentBatchType) {
       })
     );
     store.dispatch(setAppSpinner(false));
-    return response.data.data;
+    return response.data.message;
   } catch (e: any) {
     store.dispatch(setAppSpinner(false));
     return null;
